@@ -58,5 +58,6 @@ print("Max Value: \n", Max_f) #1- e MAX
 print("Min Value: \n", Min_f) #1- e MIN
 print("Av Value:\n", Av_f) #1- e Average
 print("Var Value:\n", Var_f) #1- e Variance
+
 calc_quartiles_stats(numeric_df) #1- f Quartiles
 
