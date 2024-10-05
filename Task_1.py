@@ -33,6 +33,7 @@ def calc_quartiles_stats(q_df):
 
 df = pd.read_csv("Train_data.csv") #Data fields
 
+#Part 1
 Types = df.dtypes
 fields = df.columns
 
@@ -48,8 +49,6 @@ Min_f = numeric_df.min() #numeric cuz getting the no numeric doesn't seem benefi
 Av_f = numeric_df.mean() #numeric to avoid errors
 Var_f = numeric_df.var() #numeric to avoid errors
 
-
-
 print("Data Fields:\n", list(fields)) #1- a
 print("Data Types:\n", Types) #1- b
 print("Missing Values: \n", missing_or_inf_summary) #1- c
@@ -60,3 +59,30 @@ print("Av Value:\n", Av_f) #1- e Average
 print("Var Value:\n", Var_f) #1- e Variance
 calc_quartiles_stats(numeric_df) #1- f Quartiles
 
+#Part 2
+expanded_df = pd.get_dummies(df,columns=['class'], prefix='attack')
+
+print("Expanded attacks:\n", expanded_df) #2
+
+#Part 3
+def plot_pdf_pmf(df):
+    for column in df.columns:
+        if df.dtypes[column] == 'object':
+            plt.figure(figsize=(10,5))
+            df[column].value_counts(normalize=True).plot(kind='bar')
+            plt.title("PMF of {column}:")
+            plt.xlabel(column)
+            plt.ylabel("Probability")
+            plt.grid(True)
+            plt.show()
+
+        elif df.dtypes[column] in ['int64', 'float64']:
+            plt.figure(figsize=(10,5))
+            sns.kdeplot(df[column], fill=True)
+            plt.title("PDF of {column}:")
+            plt.xlabel(column)
+            plt.ylabel("Density")
+            plt.grid(True)
+            plt.show()
+
+plot_pdf_pmf(df)
