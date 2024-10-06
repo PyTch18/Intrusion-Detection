@@ -77,6 +77,11 @@ def plot_pdf_pmf(df):
             plt.show()
 
         elif df.dtypes[column] in ['int64', 'float64']:
+
+            if df[column].var() == 0:
+                print(f"Skipping column {column} due to zero variance.")
+                continue #This part was added to avoid the warnings that appeared due to 0 Var.
+
             plt.figure(figsize=(10,5))
             sns.kdeplot(df[column], fill=True)
             plt.title("PDF of {column}:")
@@ -86,3 +91,5 @@ def plot_pdf_pmf(df):
             plt.show()
 
 plot_pdf_pmf(df)
+
+#Part 4
