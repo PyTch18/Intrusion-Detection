@@ -69,7 +69,7 @@ def plot_pdf_pmf(df_3):
         if df_3.dtypes[column] == 'object':
             plt.figure(figsize=(10,5))
             df_3[column].value_counts(normalize=True).plot(kind='bar')
-            plt.title("PMF of {column}:")
+            plt.title(f"PMF of {column}:")
             plt.xlabel(column)
             plt.ylabel("Probability")
             plt.grid(True)
@@ -83,7 +83,7 @@ def plot_pdf_pmf(df_3):
 
             plt.figure(figsize=(10,5))
             sns.kdeplot(df_3[column], fill=True)
-            plt.title("PDF of {column}:")
+            plt.title(f"PDF of {column}:")
             plt.xlabel(column)
             plt.ylabel("Density")
             plt.grid(True)
@@ -99,7 +99,7 @@ def plot_cdf(df_4):
 
         plt.figure(figsize=(10,5))
         plt.plot(cdf, sorted_data, marker='.', linestyle='none')
-        plt.title("CDF of {column}:")
+        plt.title(f"CDF of {column}:")
         plt.xlabel("Data")
         plt.ylabel("CDF")
         plt.grid(True)
