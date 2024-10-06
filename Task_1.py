@@ -1,3 +1,5 @@
+import random
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -142,4 +144,23 @@ def plot_cond_pdf_pmf(df_5):
                 plt.grid(True)
                 plt.show()
 
-plot_cond_pdf_pmf(df)
+#plot_cond_pdf_pmf(df)
+
+#Part 6
+def plot_scatter(df_6):
+    numeric_columns = list(df_6.select_dtypes(include=['int64', 'float64']).columns)
+
+    random_columns = random.sample(numeric_columns, 2) #choosing any 2 random fields
+
+    plt.figure(figsize=(10,5))
+    sns.scatterplot(x=random_columns[0], y=random_columns[1], data= df_6)
+    plt.title(f"Scatterplot of {random_columns[0]} and {random_columns[1]}")
+    plt.xlabel(random_columns[0])
+    plt.ylabel(random_columns[1])
+    plt.grid(True)
+    plt.show()
+
+#plot_scatter(df)
+
+#Part 7
+
