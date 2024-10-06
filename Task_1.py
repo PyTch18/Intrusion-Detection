@@ -76,8 +76,7 @@ def plot_pdf_pmf(df_3):
             plt.show()
 
         elif df_3.dtypes[column] in ['int64', 'float64']:
-
-            if df[column].var() == 0:
+            if df_3[column].var() == 0:
                 print(f"Skipping column {column} due to zero variance.")
                 continue #This part was added to avoid the warnings that appeared due to 0 Var.
 
@@ -105,4 +104,42 @@ def plot_cdf(df_4):
         plt.grid(True)
         plt.show()
 
-plot_cdf(df)
+#plot_cdf(df)
+
+#Part_5
+def plot_cond_pdf_pmf(df_5):
+    for column in df_5.columns:
+        if column == 'class':
+            continue # TO avoid checking for class field
+        condition = df_5['class'].unique()
+
+        for attack in condition:
+            df_5_conditioned = df_5[df_5['class'] == attack]
+
+            if df_5.dtypes[column] == 'object':
+                plt.figure(figsize=(10,5))
+                df_5[column].value_counts(normalize=True).plot(color= 'blue',kind='bar', label= 'Original PMF')
+                df_5_conditioned[column].value_counts(normalize=True).plot(color= 'orange', kind='bar', label= f'Conditional for {attack}')
+                plt.title(f"PMF of {column} (Original and Conditional for {attack})")
+                plt.legend()
+                plt.grid(True)
+                plt.show()
+
+            elif df_5.dtypes[column] in ['int64', 'float64']:
+                if df_5_conditioned[column].var() == 0:
+                    print(f"Skipping column {column} due to zero variance.")
+                    continue #This part was added to avoid the warnings that appeared due to 0 Var.
+
+                if df_5[column].var() == 0:
+                    print(f"Skipping column {column} due to zero variance.")
+                    continue  # This part was added to avoid the warnings that appeared due to 0 Var.
+
+                plt.figure(figsize=(10,5))
+                sns.kdeplot(df_5[column],color= 'blue', fill=True, label= 'Original PDF')
+                sns.kdeplot(df_5_conditioned[column], color= 'orange', fill=True, label= f'Conditional for {attack}')
+                plt.title(f"PDF of {column} (Original and Conditional for {attack})")
+                plt.legend()
+                plt.grid(True)
+                plt.show()
+
+plot_cond_pdf_pmf(df)
