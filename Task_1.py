@@ -148,7 +148,7 @@ def plot_cond_pdf_pmf(df_5):
 
 #Part 6
 def plot_scatter(df_6):
-    numeric_columns = list(df_6.select_dtypes(include=['int64', 'float64']).columns)
+    numeric_columns = list(df_6.select_dtypes(include=['int64', 'float64']).columns) #Getting the numeric data
 
     random_columns = random.sample(numeric_columns, 2) #choosing any 2 random fields
 
@@ -163,4 +163,32 @@ def plot_scatter(df_6):
 #plot_scatter(df)
 
 #Part 7
+def joint_pmf(df_71):
+    random_columns = random.sample(list(df_71.columns), 2)  # choosing any 2 random fields
+
+    contingency_table = pd.crosstab(df_71[random_columns[0]], df_71[random_columns[1]], normalize=True)
+
+    plt.figure(figsize=(10,5))
+    sns.heatmap(contingency_table, annot=True, cmap="Blues", cbar=True)
+    plt.title(f"Joint PMF plot for {random_columns[0]} and {random_columns[1]}")
+    plt.grid(True)
+    plt.show()
+
+
+def joint_pdf(df_72):
+    random_columns = random.sample(list(df_72.columns), 2)  # choosing any 2 random fields
+
+    plt.figure(figsize=(10, 5))
+    sns.jointplot(x=df_72[random_columns[0]], y=df_72[random_columns[1]], data=df_72)
+    plt.title(f"Joint PDF plot for {random_columns[0]} and {random_columns[1]}")
+    plt.grid(True)
+    plt.show()
+
+numeric = df.select_dtypes(include=['int64', 'float64'])
+#joint_pdf(numeric)
+
+categorical = df.select_dtypes(include=['object', 'category'])
+#joint_pmf(categorical)
+
+#Part 8
 
