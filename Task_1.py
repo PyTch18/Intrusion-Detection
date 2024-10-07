@@ -208,68 +208,79 @@ def plot_joint_cond_pdf_pmf(df_8):
                 plt.figure(figsize=(10, 6))
                 sns.heatmap(contingency_table, annot=True, cbar=True)
                 plt.title(f"Joint PMF plot for {random_columns[0]} and {random_columns[1]} for condition '{attack}'", fontsize=12)
-                plt.title(f"Joint PMF plot for {random_columns[0]} and {random_columns[1]} for condition {attack}")
                 plt.grid(True)
                 plt.show()
 
-            elif df_8_conditioned.dtypes[column] in ['int64', 'float64']:
 
+            elif df_8_conditioned.dtypes[column] in ['int64', 'float64']:  # For continuous variables (PDF)
                 numeric_columns = df_8_conditioned.select_dtypes(include=['int64', 'float64']).columns
 
-                random_columns = random.sample(list(numeric_columns), 2)  # choosing 2 random numeric fields
+                # Randomly choose 2 numeric fields
+                random_columns = random.sample(list(numeric_columns), 2)
+
                 var1 = df_8_conditioned[random_columns[0]].var()
                 var2 = df_8_conditioned[random_columns[1]].var()
 
                 # Ensure the data has enough variance and no NaN or Inf values
                 if var1 == 0 or var2 == 0 or np.isnan(var1) or np.isnan(var2) or np.isinf(var1) or np.isinf(var2):
-                    print(
-                        f"Skipping columns {random_columns[0]} and {random_columns[1]} due to zero variance or invalid data.")
+                    print(f"Skipping {random_columns[0]} and {random_columns[1]} due to zero variance or invalid data.")
                     continue  # Skip the plot if either column has zero variance or invalid data
 
                 # Use scatter plot for very low variance data
                 if var1 < 1e-5 or var2 < 1e-5:
                     print(f"Low variance detected in {random_columns[0]} or {random_columns[1]}, using scatter plot.")
-                    kind = 'scatter'
+
+                    plt.figure(figsize=(10, 6))
+                    sns.scatterplot(x=random_columns[0], y=random_columns[1], data=df_8_conditioned)
+                    plt.title(f"Joint Scatter plot for {random_columns[0]} and {random_columns[1]} (Attack type: '{attack}')",fontsize=12)
+                    plt.grid(True)
+                    plt.show()
+
                 else:
-                    kind = 'kde'
+                    # Plot KDE (Kernel Density Estimate) for joint PDF
+                    plt.figure(figsize=(10, 6))
+                    sns.kdeplot(x=df_8_conditioned[random_columns[0]], y=df_8_conditioned[random_columns[1]],cmap="Blues", fill=True)
+                    plt.title(f"Joint PDF for {random_columns[0]} and {random_columns[1]} (Attack type: '{attack}')",fontsize=12)
+                    plt.grid(True)
+                    plt.show()
 
-                plt.figure(figsize=(10, 6))
-                sns.scatterplot(x=random_columns[0], y=random_columns[1], data=df_8_conditioned)
-                plt.title(
-                    f"Joint Scatter plot for {random_columns[0]} and {random_columns[1]} for condition '{attack}'",
-                    fontsize=12)
-                plt.grid(True)
-                plt.show()
-
-plot_joint_cond_pdf_pmf(df)
+#plot_joint_cond_pdf_pmf(df)
 
 #part 10
-def fields_dependent_on_attack(df):
+def fields_dependent_on_attack(df_10):
     # Ensure the attack types are expanded (one-hot encoding)
-    if 'attack_normal' not in df.columns:  # Check if attack columns exist
-        df = pd.get_dummies(df, columns=['class'], prefix='attack')
+    if 'attack_normal' not in df_10.columns:  # Check if attack columns exist
+        df_10 = pd.get_dummies(df_10, columns=['class'], prefix='attack')
 
     # Print the columns to debug and check the attack column names
-    print("\nColumns after one-hot encoding:\n", df.columns)
+    print("\nColumns after one-hot encoding:\n", df_10.columns)
 
     # Identify the attack type columns (binary columns like 'attack_normal')
-    attack_columns = [col for col in df.columns if col.startswith('attack_')]
+    attack_columns = [col for col in df_10.columns if col.startswith('attack_')]
     print("\nAttack type columns identified:", attack_columns)
 
     # Select only numerical columns for correlation calculation
-    numeric_df = df.select_dtypes(include=['int64', 'float64'])
+    numeric_df_10 = df_10.select_dtypes(include=['int64', 'float64'])
 
     # Calculate the correlation between each numerical field and the attack type columns
-    correlation_matrix = numeric_df.corr()
+    correlation_matrix = numeric_df_10.corr()
+
+    plt.figure(figsize=(12, 8))
 
     # Focus on correlations with attack columns
-    try:
-        attack_correlations = correlation_matrix[attack_columns]
+    for attack_col in attack_columns:
+        print(f"\nVisualizing dependency of fields with {attack_col}:\n")
 
-        # Sort and display the fields most correlated with the type of attack
-        for attack_col in attack_columns:
-            print(f"\nCorrelation of fields with {attack_col}:\n")
-            sorted_correlations = attack_correlations[attack_col].sort_values(ascending=False)
-            print(sorted_correlations)
-    except KeyError as e:
-        print(f"Error: {e}. Attack columns might not exist in the correlation matrix.")
+        # Correlation with the attack column
+        attack_correlations = correlation_matrix[[attack_col]]
+
+        # Sort correlations by magnitude (abs) to show the strongest dependencies
+        sorted_correlations = attack_correlations.abs().sort_values(by=attack_col, ascending=False)
+        print(sorted_correlations)
+
+        # Plot a heatmap for visualization
+        sns.heatmap(attack_correlations.T, annot=True, cmap='coolwarm', center=0)
+        plt.title(f'Correlation Heatmap for {attack_col}')
+        plt.show()
+
+#fields_dependent_on_attack(df) #not working yet
