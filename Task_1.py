@@ -242,3 +242,34 @@ def plot_joint_cond_pdf_pmf(df_8):
                 plt.show()
 
 plot_joint_cond_pdf_pmf(df)
+
+#part 10
+def fields_dependent_on_attack(df):
+    # Ensure the attack types are expanded (one-hot encoding)
+    if 'attack_normal' not in df.columns:  # Check if attack columns exist
+        df = pd.get_dummies(df, columns=['class'], prefix='attack')
+
+    # Print the columns to debug and check the attack column names
+    print("\nColumns after one-hot encoding:\n", df.columns)
+
+    # Identify the attack type columns (binary columns like 'attack_normal')
+    attack_columns = [col for col in df.columns if col.startswith('attack_')]
+    print("\nAttack type columns identified:", attack_columns)
+
+    # Select only numerical columns for correlation calculation
+    numeric_df = df.select_dtypes(include=['int64', 'float64'])
+
+    # Calculate the correlation between each numerical field and the attack type columns
+    correlation_matrix = numeric_df.corr()
+
+    # Focus on correlations with attack columns
+    try:
+        attack_correlations = correlation_matrix[attack_columns]
+
+        # Sort and display the fields most correlated with the type of attack
+        for attack_col in attack_columns:
+            print(f"\nCorrelation of fields with {attack_col}:\n")
+            sorted_correlations = attack_correlations[attack_col].sort_values(ascending=False)
+            print(sorted_correlations)
+    except KeyError as e:
+        print(f"Error: {e}. Attack columns might not exist in the correlation matrix.")
