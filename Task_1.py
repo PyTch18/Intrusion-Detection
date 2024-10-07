@@ -191,4 +191,54 @@ categorical = df.select_dtypes(include=['object', 'category'])
 #joint_pmf(categorical)
 
 #Part 8
+def plot_joint_cond_pdf_pmf(df_8):
+    for column in df_8.columns:
+        if column == 'class':
+            continue # TO avoid checking for class field
+        condition = df_8['class'].unique()
 
+        for attack in condition:
+            df_8_conditioned = df_8[df_8['class'] == attack]
+
+            if df_8_conditioned.dtypes[column] == 'object':
+                random_columns = random.sample(list(df_8_conditioned.columns), 2)  # choosing any 2 random fields
+
+                contingency_table = pd.crosstab(df_8_conditioned[random_columns[0]], df_8_conditioned[random_columns[1]], normalize=True)
+
+                plt.figure(figsize=(10, 6))
+                sns.heatmap(contingency_table, annot=True, cbar=True)
+                plt.title(f"Joint PMF plot for {random_columns[0]} and {random_columns[1]} for condition '{attack}'", fontsize=12)
+                plt.title(f"Joint PMF plot for {random_columns[0]} and {random_columns[1]} for condition {attack}")
+                plt.grid(True)
+                plt.show()
+
+            elif df_8_conditioned.dtypes[column] in ['int64', 'float64']:
+
+                numeric_columns = df_8_conditioned.select_dtypes(include=['int64', 'float64']).columns
+
+                random_columns = random.sample(list(numeric_columns), 2)  # choosing 2 random numeric fields
+                var1 = df_8_conditioned[random_columns[0]].var()
+                var2 = df_8_conditioned[random_columns[1]].var()
+
+                # Ensure the data has enough variance and no NaN or Inf values
+                if var1 == 0 or var2 == 0 or np.isnan(var1) or np.isnan(var2) or np.isinf(var1) or np.isinf(var2):
+                    print(
+                        f"Skipping columns {random_columns[0]} and {random_columns[1]} due to zero variance or invalid data.")
+                    continue  # Skip the plot if either column has zero variance or invalid data
+
+                # Use scatter plot for very low variance data
+                if var1 < 1e-5 or var2 < 1e-5:
+                    print(f"Low variance detected in {random_columns[0]} or {random_columns[1]}, using scatter plot.")
+                    kind = 'scatter'
+                else:
+                    kind = 'kde'
+
+                plt.figure(figsize=(10, 6))
+                sns.scatterplot(x=random_columns[0], y=random_columns[1], data=df_8_conditioned)
+                plt.title(
+                    f"Joint Scatter plot for {random_columns[0]} and {random_columns[1]} for condition '{attack}'",
+                    fontsize=12)
+                plt.grid(True)
+                plt.show()
+
+plot_joint_cond_pdf_pmf(df)
