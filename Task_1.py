@@ -257,6 +257,11 @@ def fields_dependent_on_attack(df_10):
 
     # Identify the attack type columns (binary columns like 'attack_normal')
     attack_columns = [col for col in df_10.columns if col.startswith('attack_')]
+
+    if not attack_columns:
+        print("No attack columns found after one-hot encoding. Check the 'class' column for expected values.")
+        return  # Stop if no attack columns are present
+
     print("\nAttack type columns identified:", attack_columns)
 
     # Select only numerical columns for correlation calculation
@@ -269,6 +274,10 @@ def fields_dependent_on_attack(df_10):
 
     # Focus on correlations with attack columns
     for attack_col in attack_columns:
+        if attack_col not in correlation_matrix.columns:
+            print(f"Skipping {attack_col} as it's not in the correlation matrix.")
+            continue
+
         print(f"\nVisualizing dependency of fields with {attack_col}:\n")
 
         # Correlation with the attack column
@@ -283,4 +292,6 @@ def fields_dependent_on_attack(df_10):
         plt.title(f'Correlation Heatmap for {attack_col}')
         plt.show()
 
-#fields_dependent_on_attack(df) #not working yet
+
+# Example usage (assuming df is your DataFrame)
+fields_dependent_on_attack(df)
