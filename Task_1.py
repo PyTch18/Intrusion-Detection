@@ -246,6 +246,21 @@ def plot_joint_cond_pdf_pmf(df_8):
 
 #plot_joint_cond_pdf_pmf(df)
 
+# Part 9
+def correlation_heatmap(df_9):
+    # Select only numeric columns for correlation calculation
+    numeric_df = df_9.select_dtypes(include=['int64', 'float64'])
+    # Calculate the correlation matrix
+    correlation_matrix = numeric_df.corr()
+    # Plot the heatmap
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm', cbar=True)
+    plt.title("Correlation Heatmap of Numeric Fields")
+    plt.grid(True)
+    plt.show()
+
+#correlation_heatmap(df)
+
 #part 10
 def fields_dependent_on_attack(df):
     # Step 1: One-hot encode the 'class' column to create binary attack type columns
@@ -282,4 +297,4 @@ def fields_dependent_on_attack(df):
     plt.title('Correlation of Fields with Attack Types')
     plt.show()
 
-fields_dependent_on_attack(df)
+#fields_dependent_on_attack(df)
