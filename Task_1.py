@@ -247,51 +247,39 @@ def plot_joint_cond_pdf_pmf(df_8):
 #plot_joint_cond_pdf_pmf(df)
 
 #part 10
-def fields_dependent_on_attack(df_10):
-    # Ensure the attack types are expanded (one-hot encoding)
-    if 'attack_normal' not in df_10.columns:  # Check if attack columns exist
-        df_10 = pd.get_dummies(df_10, columns=['class'], prefix='attack')
+def fields_dependent_on_attack(df):
+    # Step 1: One-hot encode the 'class' column to create binary attack type columns
+    df = pd.get_dummies(df, columns=['class'], prefix='attack')
 
-    # Print the columns to debug and check the attack column names
-    print("\nColumns after one-hot encoding:\n", df_10.columns)
-
-    # Identify the attack type columns (binary columns like 'attack_normal')
-    attack_columns = [col for col in df_10.columns if col.startswith('attack_')]
-
+    # Step 2: Check for attack type columns created
+    attack_columns = [col for col in df.columns if col.startswith('attack_')]
     if not attack_columns:
-        print("No attack columns found after one-hot encoding. Check the 'class' column for expected values.")
-        return  # Stop if no attack columns are present
+        raise ValueError("No attack type columns found. Check the 'class' column encoding.")
 
     print("\nAttack type columns identified:", attack_columns)
 
-    # Select only numerical columns for correlation calculation
-    numeric_df_10 = df_10.select_dtypes(include=['int64', 'float64'])
+    # Step 3: Select only numeric columns for correlation calculation, including attack columns
+    numeric_df = df.select_dtypes(include=['int64', 'float64']).copy()
 
-    # Calculate the correlation between each numerical field and the attack type columns
-    correlation_matrix = numeric_df_10.corr()
+    # Manually include attack columns in the numeric dataframe
+    numeric_df[attack_columns] = df[attack_columns]
 
-    plt.figure(figsize=(12, 8))
+    # Step 4: Calculate the correlation matrix for numeric fields
+    correlation_matrix = numeric_df.corr()
 
-    # Focus on correlations with attack columns
+    # Step 5: Focus on correlations with attack columns (filter only attack columns)
+    attack_correlations = correlation_matrix[attack_columns]
+
+    # Step 6: Display the fields most correlated with each attack type
     for attack_col in attack_columns:
-        if attack_col not in correlation_matrix.columns:
-            print(f"Skipping {attack_col} as it's not in the correlation matrix.")
-            continue
-
-        print(f"\nVisualizing dependency of fields with {attack_col}:\n")
-
-        # Correlation with the attack column
-        attack_correlations = correlation_matrix[[attack_col]]
-
-        # Sort correlations by magnitude (abs) to show the strongest dependencies
-        sorted_correlations = attack_correlations.abs().sort_values(by=attack_col, ascending=False)
+        print(f"\nCorrelation of fields with {attack_col}:\n")
+        sorted_correlations = attack_correlations[attack_col].sort_values(ascending=False)
         print(sorted_correlations)
 
-        # Plot a heatmap for visualization
-        sns.heatmap(attack_correlations.T, annot=True, cmap='coolwarm', center=0)
-        plt.title(f'Correlation Heatmap for {attack_col}')
-        plt.show()
+    # Step 7: Visualize the correlation matrix as a heatmap
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(attack_correlations, annot=True, cmap='coolwarm', fmt='.2f')
+    plt.title('Correlation of Fields with Attack Types')
+    plt.show()
 
-
-# Example usage (assuming df is your DataFrame)
 fields_dependent_on_attack(df)
