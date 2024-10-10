@@ -83,13 +83,16 @@ def plot_pdf_pmf(df_3):
                 continue #This part was added to avoid the warnings that appeared due to 0 Var.
 
             plt.figure(figsize=(10,5))
-            sns.kdeplot(df_3[column], fill=True)
+            #sns.kdeplot(df_3[column], fill=True)
+            #sns.histplot(df_3[column], kde=True, stat='density',bins = 30)
             plt.title(f"PDF of {column}:")
             plt.xlabel(column)
             plt.ylabel("Density")
             plt.grid(True)
             plt.show()
 
+# part 3 has two ways for plotting commented
+# use them by removing the # of the desired one
 #plot_pdf_pmf(df)
 
 #Part 4
