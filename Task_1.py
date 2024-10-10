@@ -226,6 +226,13 @@ def plot_joint_cond_pdf_pmf(df_8):
                     print(f"Skipping {random_columns[0]} and {random_columns[1]} due to zero variance or invalid data.")
                     continue  # Skip the plot if either column has zero variance or invalid data
 
+                # Check for unique values (at least 2 unique values required)
+                if df_8_conditioned[random_columns[0]].nunique() < 2 or df_8_conditioned[
+                    random_columns[1]].nunique() < 2:
+                    print(
+                        f"Skipping {random_columns[0]} and {random_columns[1]} due to insufficient unique values.")
+                    continue
+
                 # Use scatter plot for very low variance data
                 if var1 < 1e-5 or var2 < 1e-5:
                     print(f"Low variance detected in {random_columns[0]} or {random_columns[1]}, using scatter plot.")
@@ -238,12 +245,18 @@ def plot_joint_cond_pdf_pmf(df_8):
 
                 else:
                     # Plot KDE (Kernel Density Estimate) for joint PDF
-                    plt.figure(figsize=(10, 6))
-                    sns.kdeplot(x=df_8_conditioned[random_columns[0]], y=df_8_conditioned[random_columns[1]],cmap="Blues", fill=True)
-                    plt.title(f"Joint PDF for {random_columns[0]} and {random_columns[1]} (Attack type: '{attack}')",fontsize=12)
-                    plt.grid(True)
-                    plt.show()
+                    try:
+                        plt.figure(figsize=(10, 6))
+                        sns.kdeplot(x=df_8_conditioned[random_columns[0]], y=df_8_conditioned[random_columns[1]],cmap="Blues", fill=True)
+                        plt.title(f"Joint PDF for {random_columns[0]} and {random_columns[1]} (Attack type: '{attack}')",fontsize=12)
+                        plt.grid(True)
+                        plt.show()
+                    except ValueError as e:
+                        print(f"Skipping KDE plot for {random_columns[0]} and {random_columns[1]} due to error: {e}")
+                        continue
 
+# Extremely heavy code
+# Approx. 10 minutes runtime
 #plot_joint_cond_pdf_pmf(df)
 
 # Part 9
