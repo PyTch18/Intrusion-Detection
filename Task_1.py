@@ -102,14 +102,14 @@ def plot_cdf(df_4):
         cdf = np.arange(1, len(sorted_data)+1)/ len(sorted_data)
 
         plt.figure(figsize=(10,5))
-        plt.plot(cdf, sorted_data, marker='.', linestyle='none')
+        plt.plot( sorted_data,  cdf, marker='.', linestyle='none')
         plt.title(f"CDF of {column}:")
         plt.xlabel("Data")
         plt.ylabel("CDF")
         plt.grid(True)
         plt.show()
 
-#plot_cdf(df)
+plot_cdf(df)
 
 #Part_5
 def plot_cond_pdf_pmf(df_5):
