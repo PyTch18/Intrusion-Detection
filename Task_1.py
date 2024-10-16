@@ -222,7 +222,7 @@ def joint_pdf(df_72):
             print(f"Skipping KDE plot for {random_columns[0]} and {random_columns[1]} due to error: {e}")
 
 numeric = df.select_dtypes(include=['int64', 'float64'])
-joint_pdf(numeric)
+#joint_pdf(numeric)
 
 categorical = df.select_dtypes(include=['object', 'category'])
 #joint_pmf(categorical)
