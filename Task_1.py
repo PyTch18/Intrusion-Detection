@@ -109,7 +109,7 @@ def plot_cdf(df_4):
         plt.grid(True)
         plt.show()
 
-plot_cdf(df)
+#plot_cdf(df)
 
 #Part_5
 def plot_cond_pdf_pmf(df_5):
@@ -179,16 +179,50 @@ def joint_pmf(df_71):
 
 
 def joint_pdf(df_72):
-    random_columns = random.sample(list(df_72.columns), 2)  # choosing any 2 random fields
+    # Initialize a flag to control the loop
+    valid_columns = False
 
-    plt.figure(figsize=(10, 5))
-    sns.jointplot(x=df_72[random_columns[0]], y=df_72[random_columns[1]], data=df_72)
-    plt.title(f"Joint PDF plot for {random_columns[0]} and {random_columns[1]}")
-    plt.grid(True)
-    plt.show()
+    while not valid_columns:
+        # Randomly choose 2 fields
+        random_columns = random.sample(list(df_72.columns), 2)
+
+        var1 = df_72[random_columns[0]].var()
+        var2 = df_72[random_columns[1]].var()
+
+        # Check for valid variance and unique values
+        if var1 == 0 or var2 == 0 or np.isnan(var1) or np.isnan(var2) or np.isinf(var1) or np.isinf(var2):
+            print(f"Skipping {random_columns[0]} and {random_columns[1]} due to zero variance or invalid data.")
+            continue  # Keep looping to select new columns
+
+        if df_72[random_columns[0]].nunique() < 2 or df_72[random_columns[1]].nunique() < 2:
+            print(f"Skipping {random_columns[0]} and {random_columns[1]} due to insufficient unique values.")
+            continue  # Keep looping to select new columns
+
+        # Once valid columns are found, stop the loop
+        valid_columns = True
+
+    # Plot scatter plot for very low variance
+    if var1 < 1e-5 or var2 < 1e-5:
+        print(f"Low variance detected in {random_columns[0]} or {random_columns[1]}, using scatter plot.")
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=random_columns[0], y=random_columns[1], data=df_72)
+        plt.title(f"Joint Scatter plot for {random_columns[0]} and {random_columns[1]}")
+        plt.grid(True)
+        plt.show()
+
+    # Plot KDE (Kernel Density Estimate) for valid data
+    else:
+        try:
+            plt.figure(figsize=(10, 6))
+            sns.kdeplot(x=df_72[random_columns[0]], y=df_72[random_columns[1]], cmap="Blues", fill=True)
+            plt.title(f"Joint PDF for {random_columns[0]} and {random_columns[1]}")
+            plt.grid(True)
+            plt.show()
+        except ValueError as e:
+            print(f"Skipping KDE plot for {random_columns[0]} and {random_columns[1]} due to error: {e}")
 
 numeric = df.select_dtypes(include=['int64', 'float64'])
-#joint_pdf(numeric)
+joint_pdf(numeric)
 
 categorical = df.select_dtypes(include=['object', 'category'])
 #joint_pmf(categorical)
@@ -265,11 +299,11 @@ def plot_joint_cond_pdf_pmf(df_8):
 # Part 9
 def correlation_heatmap(df_9):
     # Select only numeric columns for correlation calculation
-    numeric_df = df_9.select_dtypes(include=['int64', 'float64'])
+    numeric_df_9 = df_9.select_dtypes(include=['int64', 'float64'])
     # Calculate the correlation matrix
-    correlation_matrix = numeric_df.corr()
+    correlation_matrix = numeric_df_9.corr()
     # Plot the heatmap
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(24, 16))
     sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm', cbar=True)
     plt.title("Correlation Heatmap of Numeric Fields")
     plt.grid(True)
@@ -278,25 +312,25 @@ def correlation_heatmap(df_9):
 #correlation_heatmap(df)
 
 #part 10
-def fields_dependent_on_attack(df):
+def fields_dependent_on_attack(df_10):
     # Step 1: One-hot encode the 'class' column to create binary attack type columns
-    df = pd.get_dummies(df, columns=['class'], prefix='attack')
+    df_10 = pd.get_dummies(df_10, columns=['class'], prefix='attack')
 
     # Step 2: Check for attack type columns created
-    attack_columns = [col for col in df.columns if col.startswith('attack_')]
+    attack_columns = [col for col in df_10.columns if col.startswith('attack_')]
     if not attack_columns:
         raise ValueError("No attack type columns found. Check the 'class' column encoding.")
 
     print("\nAttack type columns identified:", attack_columns)
 
     # Step 3: Select only numeric columns for correlation calculation, including attack columns
-    numeric_df = df.select_dtypes(include=['int64', 'float64']).copy()
+    numeric_df_10 = df_10.select_dtypes(include=['int64', 'float64']).copy()
 
     # Manually include attack columns in the numeric dataframe
-    numeric_df[attack_columns] = df[attack_columns]
+    numeric_df_10[attack_columns] = df[attack_columns]
 
     # Step 4: Calculate the correlation matrix for numeric fields
-    correlation_matrix = numeric_df.corr()
+    correlation_matrix = numeric_df_10.corr()
 
     # Step 5: Focus on correlations with attack columns (filter only attack columns)
     attack_correlations = correlation_matrix[attack_columns]
