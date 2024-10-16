@@ -222,7 +222,7 @@ def joint_pdf(df_72):
             print(f"Skipping KDE plot for {random_columns[0]} and {random_columns[1]} due to error: {e}")
 
 numeric = df.select_dtypes(include=['int64', 'float64'])
-joint_pdf(numeric)
+#joint_pdf(numeric)
 
 categorical = df.select_dtypes(include=['object', 'category'])
 #joint_pmf(categorical)
@@ -327,7 +327,7 @@ def fields_dependent_on_attack(df_10):
     numeric_df_10 = df_10.select_dtypes(include=['int64', 'float64']).copy()
 
     # Manually include attack columns in the numeric dataframe
-    numeric_df_10[attack_columns] = df[attack_columns]
+    numeric_df_10[attack_columns] = df_10[attack_columns]
 
     # Step 4: Calculate the correlation matrix for numeric fields
     correlation_matrix = numeric_df_10.corr()
@@ -347,4 +347,4 @@ def fields_dependent_on_attack(df_10):
     plt.title('Correlation of Fields with Attack Types')
     plt.show()
 
-#fields_dependent_on_attack(df)
+fields_dependent_on_attack(df)
