@@ -106,7 +106,7 @@ def plot_cdf(df_4):
         plt.grid(True)
         plt.show()
 
-#plot_cdf(df)
+plot_cdf(df)
 
 #Part_5
 def plot_cond_pdf_pmf(df_5):
