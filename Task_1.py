@@ -347,4 +347,4 @@ def fields_dependent_on_attack(df_10):
     plt.title('Correlation of Fields with Attack Types')
     plt.show()
 
-#fields_dependent_on_attack(df)
+fields_dependent_on_attack(df)
