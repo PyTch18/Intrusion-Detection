@@ -52,19 +52,43 @@ def best_fit_distribution(df1):
                 continue  # Skip to the next column if an error occurs
 
 #best_fit_distribution(df)
-
 def z_score(df1, thresholds1):
+    result = {}
 
     for column in df1.columns:
-        if df1.dtypes[column] in ['int64', 'float64']: # getting the z-score for the numerical data
-            mean = df1[column].mean() # Mean for the data
-            std = df1[column].std() # Standard deviation for the data
-            z_scores = (df1[column] - mean) / std # Z-score for the data
+        # Skip non-numeric columns and the target 'class' column
+        if df1.dtypes[column] in ['int64', 'float64'] and column != 'class':
+            # Define combinations as lists of column names (not data)
+            combinations = [[column], [column, 'class']]
 
-            for threshold in thresholds1:
-                anomalies = z_scores[abs(z_scores) > threshold]
-                print(f"{column} with higher threshold than {threshold}:\n {anomalies}")
+            for combination in combinations:
+                # Create subset with the specified combination of columns
+                df1_subset = df1[combination]
 
-thresholds = [1.5,2.0,2.5,3.0]
-z_score(df, thresholds)
+                # Initialize dictionary to store results for this combination
+                result[tuple(combination)] = {}
 
+                # Calculate Z-score for the primary column in the combination
+                mean = df1_subset[column].mean()  # Mean for the column
+                std = df1_subset[column].std()  # Standard deviation for the column
+                z_scores = (df1_subset[column] - mean) / std  # Z-scores
+
+                # Apply each threshold to detect anomalies
+                for threshold in thresholds1:
+                    anomalies = z_scores[abs(z_scores) > threshold]
+
+                    # Store anomalies in the results dictionary
+                    if threshold not in result[tuple(combination)]:
+                        result[tuple(combination)][threshold] = []
+
+                    result[tuple(combination)][threshold].append(anomalies)
+
+                    # Print anomalies for the current threshold
+                    print(f"Anomalies in {column} with threshold {threshold}:\n{anomalies}\n")
+
+    return result
+
+
+# Example usage
+thresholds = [1.5, 2.0, 2.5, 3.0]
+anomaly_results = z_score(df, thresholds)
