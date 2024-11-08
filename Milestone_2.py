@@ -14,7 +14,7 @@ selected_df = df.iloc[:,0:41]
 #display(selected_df.to_string())
 
 training_df = df.iloc[:int(df.shape[0]*0.7),:]
-testing_df = df.iloc[int(df.shape[0]*0.7):, :]
+testing_df = df.iloc[int(df.shape[0]*0.3):, :]
 
 #to determine the best distribution we will use distfit as it trys the data on 89 different distributions
 def best_fit_distribution(df1):
@@ -108,4 +108,4 @@ def performace_metrics(df3):
     else:
         print("wrong data set")
 
-performace_metrics(df)
+performace_metrics(testing_df)
