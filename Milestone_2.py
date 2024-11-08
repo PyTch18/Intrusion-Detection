@@ -58,33 +58,33 @@ def z_score(df1, thresholds1):
     for column in df1.columns:
         # Skip non-numeric columns and the target 'class' column
         if df1.dtypes[column] in ['int64', 'float64'] and column != 'class':
-            # Define combinations as lists of column names (not data)
-            combinations = [[column], [column, 'class']]
+            # Calculate Z-scores for the column
+            mean = df1[column].mean()  # Mean for the column
+            std = df1[column].std()  # Standard deviation for the column
+            z_scores = (df1[column] - mean) / std  # Z-scores
 
-            for combination in combinations:
-                # Create subset with the specified combination of columns
-                df1_subset = df1[combination]
+            # Split Z-scores based on 'class' column
+            normal_scores = z_scores[df1['class'] == 'normal']
+            anomaly_scores = z_scores[df1['class'] == 'anomaly']
 
-                # Initialize dictionary to store results for this combination
-                result[tuple(combination)] = {}
+            result[column] = {}
 
-                # Calculate Z-score for the primary column in the combination
-                mean = df1_subset[column].mean()  # Mean for the column
-                std = df1_subset[column].std()  # Standard deviation for the column
-                z_scores = (df1_subset[column] - mean) / std  # Z-scores
+            # Check anomalies at each threshold
+            for threshold in thresholds1:
+                # Find anomalies where Z-score exceeds the threshold
+                normal_anomalies = normal_scores[abs(normal_scores) > threshold]
+                detected_anomalies = anomaly_scores[abs(anomaly_scores) > threshold]
 
-                # Apply each threshold to detect anomalies
-                for threshold in thresholds1:
-                    anomalies = z_scores[abs(z_scores) > threshold]
+                # Store counts of anomalies for each threshold
+                result[column][threshold] = {
+                    'normal_count_above_threshold': len(normal_anomalies),
+                    'anomaly_count_above_threshold': len(detected_anomalies)
+                }
 
-                    # Store anomalies in the results dictionary
-                    if threshold not in result[tuple(combination)]:
-                        result[tuple(combination)][threshold] = []
-
-                    result[tuple(combination)][threshold].append(anomalies)
-
-                    # Print anomalies for the current threshold
-                    print(f"Anomalies in {column} with threshold {threshold}:\n{anomalies}\n")
+                # Print the results for this feature and threshold
+                print(f"Feature '{column}' with threshold {threshold}:")
+                print(f"  Normal count above threshold: {len(normal_anomalies)}")
+                print(f"  Anomaly count above threshold: {len(detected_anomalies)}\n")
 
     return result
 
