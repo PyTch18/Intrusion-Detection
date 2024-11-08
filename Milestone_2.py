@@ -51,4 +51,20 @@ def best_fit_distribution(df1):
                 print(f"Error fitting distribution for column '{column}': {e}")
                 continue  # Skip to the next column if an error occurs
 
-best_fit_distribution(df)
+#best_fit_distribution(df)
+
+def z_score(df1, thresholds1):
+
+    for column in df1.columns:
+        if df1.dtypes[column] in ['int64', 'float64']: # getting the z-score for the numerical data
+            mean = df1[column].mean() # Mean for the data
+            std = df1[column].std() # Standard deviation for the data
+            z_scores = (df1[column] - mean) / std # Z-score for the data
+
+            for threshold in thresholds1:
+                anomalies = z_scores[abs(z_scores) > threshold]
+                print(f"{column} with higher threshold than {threshold}:\n {anomalies}")
+
+thresholds = [1.5,2.0,2.5,3.0]
+z_score(df, thresholds)
+
