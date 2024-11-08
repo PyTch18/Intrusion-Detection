@@ -3,6 +3,7 @@ import pandas as pd
 from IPython.core.display_functions import display
 from distfit import distfit
 from matplotlib import pyplot as plt
+from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
 #import the dataframe
@@ -88,7 +89,23 @@ def z_score(df1, thresholds1):
 
     return result
 
-
 # Example usage
-thresholds = [1.5, 2.0, 2.5, 3.0]
-anomaly_results = z_score(df, thresholds)
+#thresholds = [1.5, 2.0, 2.5, 3.0]
+#anomaly_results = z_score(df, thresholds)
+
+def performace_metrics(df3):
+    x = (df3['class'] == 'normal').astype(int)
+    y = (df3['flag'] == 'SF').astype(int)
+    matrix = confusion_matrix(x,y)
+    if matrix.shape == (2,2):
+        tn, fp, fn, tp = matrix.ravel()
+        accuracy = (tp + tn) / (tp + tn + fp + fn)
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        print(f"Accuracy: {accuracy}")
+        print(f"Precision: {precision}")
+        print(f"Recall: {recall}")
+    else:
+        print("wrong data set")
+
+performace_metrics(df)
