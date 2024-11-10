@@ -102,11 +102,16 @@ def performance_metrics(df3):
                                                     # is normal it will be stored as 0
     predicted = array.array('i')
     for rows in df3.rows:
+        error = 0
         for column in df3.columns:
             if df.dtypes[column] in ['int64', 'float64'] and column != 'class':
                 x_value = df3[column,rows]
-                predicted.append((z_score(x_value, thresholds) > thresholds[0]).astype(int)) # if z score is greater than
-                                                                                             # threshold then the value is an anomaly
+                if z_score(x_value, thresholds) > thresholds[0]:
+                    error += 1
+        if error >= 6:
+            predicted.append(1) # anomaly
+        else:
+            predicted.append(0) # normal
     matrix = confusion_matrix(actual,predicted)
     if matrix.shape == (2,2):
         tn, fp, fn, tp = matrix.ravel()
