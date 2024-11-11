@@ -154,6 +154,7 @@ def best_fit_distribution(data, distributions, adjust_range=False):
 
             # Calculate MSE for the fit within the adjusted range
             mse = calculate_mse(counts, fitted_pdf)
+            #print(f"mse for {distribution} is {mse}")
 
             # Identify the distribution with the lowest MSE
             if mse < best_mse:
@@ -189,29 +190,31 @@ def best_fit_mse(df):
     # Comprehensive list of candidate distributions to test from scipy.stats
     distributions = [
         stats.norm, stats.expon, stats.gamma, stats.pareto, stats.beta, stats.lognorm, stats.weibull_min,
-        stats.weibull_max,
-        stats.t, stats.f, stats.chi2, stats.gumbel_r, stats.gumbel_l, stats.dweibull, stats.genextreme, stats.uniform
+        stats.weibull_max, stats.t, stats.f, stats.chi2, stats.gumbel_r, stats.gumbel_l, stats.dweibull,
+        stats.genextreme, stats.uniform
     ]
 
     # Loop through each numerical column and fit the best distributions conditioned on each class value
-    for column in numerical_columns:
+    for column_name in numerical_columns:
+        column = df[column_name]  # Reference the actual column data here
+
         # Check if the column has extreme values
-        adjust_range = has_extreme_values(df[column])
+        adjust_range = has_extreme_values(column)
         plt.figure(figsize=(12, 6))
-        plt.title(f'Best-Fitting PDFs of {column} Conditioned on Class Values (Based on MSE)')
+        plt.title(f'Best-Fitting PDFs of {column_name} Conditioned on Class Values (Based on MSE)')
 
         if column.nunique() < 10:
-            print(f"Skipping '{column}' due to insufficient unique values after filtering.")
+            print(f"Skipping '{column_name}' due to insufficient unique values after filtering.")
             continue  # Skip this column if there are too few unique values
 
         if column.var() < 1e-5:
-            print(f"Skipping '{column}' due to low variance.")
+            print(f"Skipping '{column_name}' due to low variance.")
             continue  # Skip this column if variance is too low
 
         # Loop through each class value and fit the best PDF for that subset
         for value in class_values:
             # Filter the data for the current class value
-            data_conditioned = df[df['class'] == value][column].dropna()
+            data_conditioned = df[df['class'] == value][column_name].dropna()
             # Find the best-fitting distribution based on MSE
             best_distribution, best_params, best_mse = best_fit_distribution(data_conditioned, distributions,
                                                                              adjust_range=adjust_range)
@@ -228,7 +231,7 @@ def best_fit_mse(df):
                          label=f'{best_distribution.name} (MSE = {best_mse:.5f}, class = {value})')
 
         # Display plot settings
-        plt.xlabel(column)
+        plt.xlabel(column_name)
         plt.ylabel('Density')
         plt.legend()
         plt.grid(True)
