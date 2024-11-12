@@ -20,45 +20,6 @@ selected_df = df.iloc[:,0:41]
 training_df = selected_df.iloc[:int(df.shape[0]*0.7),:]
 testing_df = selected_df.iloc[int(df.shape[0]*0.7):, :]
 
-#task 2 part 1 (i)
-#to determine the best distribution we will use distfit as it trys the data on 89 different distributions
-def best_fit_distribution_1(df1):
-    dist = distfit()
-    for column in df1.columns:
-        if df1.dtypes[column] in ['int64', 'float64']:
-            print(f"\nFitting distribution for column: {column}")
-            try:
-                # Filter data to exclude outliers (2nd to 98th percentiles)
-                lower_bound = np.percentile(df1[column].dropna(), 2)
-                upper_bound = np.percentile(df1[column].dropna(), 98)
-                filtered_data = df1[(df1[column] >= lower_bound) & (df1[column] <= upper_bound)][column]
-
-                # Additional checks for sufficient unique values and variance
-                if filtered_data.nunique() < 10:
-                    print(f"Skipping '{column}' due to insufficient unique values after filtering.")
-                    continue  # Skip this column if there are too few unique values
-
-                if filtered_data.var() < 1e-5:
-                    print(f"Skipping '{column}' due to low variance.")
-                    continue  # Skip this column if variance is too low
-
-
-
-                dist.fit_transform(filtered_data.dropna())  # Drop NaN values if any
-
-                # Plot the best-fit distribution
-                dist.plot()
-                plt.show()  # Ensure the plot is displayed
-
-                # Print the best-fitting model for the column
-                print(f"Best distribution for '{column}': {dist.model}")
-
-            except Exception as e:
-                print(f"Error fitting distribution for column '{column}': {e}")
-                continue  # Skip to the next column if an error occurs
-
-#best_fit_distribution(df)
-
 def z_score(df2, thresholds1):
     result = {}
 
