@@ -127,69 +127,6 @@ def performance_metrics(df3):
         print("wrong data set")
 
 #performance_metrics(df)
-
-# Task 2 part (III)
-# Summarize best-fit PDF for numerical columns
-def document_best_fit_pdf(df91):
-    dist = distfit()
-    result_summary = {}
-    for column in df91.select_dtypes(include=[np.number]).columns:
-        if df91[column].nunique() < 10:
-            print(f"Skipping '{column}' due to insufficient unique values.")
-            continue
-        if df91[column].var() < 1e-5:
-            print(f"Skipping '{column}' due to low variance.")
-            continue
-        try:
-            lower_bound = np.percentile(df91[column].dropna(), 2)
-            upper_bound = np.percentile(df91[column].dropna(), 98)
-            filtered_data = df91[(df91[column] >= lower_bound) & (df91[column] <= upper_bound)][column]
-            dist.fit_transform(filtered_data.dropna())
-            best_distribution = dist.model
-            result_summary[column] = {
-                'best_fit_distribution': best_distribution['name'],
-                'params': best_distribution['params']
-            }
-        except Exception as e:
-            print(f"Error fitting distribution for '{column}': {e}")
-    return result_summary
-
-# Summarize PMF data for categorical columns
-def document_pmf_data(df92):
-    pmf_summary = {}
-    for column in df92.select_dtypes(include=['object']).columns:
-        try:
-            pmf = df92[column].value_counts(normalize=True)
-            pmf_summary[column] = pmf.to_dict()  # Store PMF as dictionary for future reference
-        except Exception as e:
-            print(f"Error calculating PMF for '{column}': {e}")
-    return pmf_summary
-
-# Document results for both numerical and categorical columns
-def document_analysis_results(df93):
-    # Summarize best-fit distributions for numerical columns
-    numerical_summary = document_best_fit_pdf(df93)
-    # Summarize PMF data for categorical columns
-    categorical_summary = document_pmf_data(df93)
-    return numerical_summary, categorical_summary
-
-
-def print_summary(numerical_summary, categorical_summary):
-    print("\nPDF Summary (Numerical Columns):")
-    for column, info in numerical_summary.items():
-        print(f"  - Column: {column}")
-        print(f"    Best-Fit Distribution: {info['best_fit_distribution']}")
-        print(f"    Parameters: {info['params']}")
-
-    print("\nPMF Summary (Categorical Columns):")
-    for column, pmf in categorical_summary.items():
-        print(f"  - Column: {column}")
-        print("    PMF:")
-        for value, probability in pmf.items():
-            print(f"      {value}: {probability:.4f}")
-
-ns,cs = document_analysis_results(df)
-print_summary(ns, cs)
 #best_fit_distribution_1(df)
 
 #task 2 part(ii)
@@ -415,3 +352,66 @@ def plot_cond_pmf(df_5):
                 plt.show()
 
 #plot_cond_pmf(df)
+
+# Task 2 part (III)
+# Summarize best-fit PDF for numerical columns
+def document_best_fit_pdf(df91):
+    dist = distfit()
+    result_summary = {}
+    for column in df91.select_dtypes(include=[np.number]).columns:
+        if df91[column].nunique() < 10:
+            print(f"Skipping '{column}' due to insufficient unique values.")
+            continue
+        if df91[column].var() < 1e-5:
+            print(f"Skipping '{column}' due to low variance.")
+            continue
+        try:
+            lower_bound = np.percentile(df91[column].dropna(), 2)
+            upper_bound = np.percentile(df91[column].dropna(), 98)
+            filtered_data = df91[(df91[column] >= lower_bound) & (df91[column] <= upper_bound)][column]
+            dist.fit_transform(filtered_data.dropna())
+            best_distribution = dist.model
+            result_summary[column] = {
+                'best_fit_distribution': best_distribution['name'],
+                'params': best_distribution['params']
+            }
+        except Exception as e:
+            print(f"Error fitting distribution for '{column}': {e}")
+    return result_summary
+
+# Summarize PMF data for categorical columns
+def document_pmf_data(df92):
+    pmf_summary = {}
+    for column in df92.select_dtypes(include=['object']).columns:
+        try:
+            pmf = df92[column].value_counts(normalize=True)
+            pmf_summary[column] = pmf.to_dict()  # Store PMF as dictionary for future reference
+        except Exception as e:
+            print(f"Error calculating PMF for '{column}': {e}")
+    return pmf_summary
+
+# Document results for both numerical and categorical columns
+def document_analysis_results(df93):
+    # Summarize best-fit distributions for numerical columns
+    numerical_summary = document_best_fit_pdf(df93)
+    # Summarize PMF data for categorical columns
+    categorical_summary = document_pmf_data(df93)
+    return numerical_summary, categorical_summary
+
+
+def print_summary(numerical_summary, categorical_summary):
+    print("\nPDF Summary (Numerical Columns):")
+    for column, info in numerical_summary.items():
+        print(f"  - Column: {column}")
+        print(f"    Best-Fit Distribution: {info['best_fit_distribution']}")
+        print(f"    Parameters: {info['params']}")
+
+    print("\nPMF Summary (Categorical Columns):")
+    for column, pmf in categorical_summary.items():
+        print(f"  - Column: {column}")
+        print("    PMF:")
+        for value, probability in pmf.items():
+            print(f"      {value}: {probability:.4f}")
+
+ns,cs = document_analysis_results(df)
+print_summary(ns, cs)
