@@ -21,6 +21,7 @@ selected_df = df.iloc[:,0:41]
 training_df = selected_df.iloc[:int(df.shape[0]*0.7),:]
 testing_df = selected_df.iloc[int(df.shape[0]*0.7):, :]
 
+
 #task 2 part 1 (i)
 #to determine the best distribution we will use distfit as it trys the data on 89 different distributions
 def best_fit_distribution_1(df1):
@@ -59,46 +60,75 @@ def best_fit_distribution_1(df1):
                 continue  # Skip to the next column if an error occurs
 
 #best_fit_distribution(df)
+def attack_correlation(df_full):
+    # Encode the 'class' column as numeric (1 for 'anomaly', 0 for 'normal')
+    df_full['class_encoded'] = df_full['class'].apply(lambda x: 1 if x == 'anomaly' else 0)
 
-def z_score(df2, thresholds1):
+    # Select only numeric columns
+    numeric_df_full = df_full.select_dtypes(include=['int64', 'float64']).copy()
+
+    # Calculate correlations of each numeric column with the 'class_encoded' column
+    correlation_with_attack = numeric_df_full.apply(lambda x: x.corr(df_full['class_encoded']))
+
+    # Drop the temporary 'class_encoded' column
+    df_full.drop(columns=['class_encoded'], inplace=True)
+
+    # Convert the result to a dictionary or array (optional)
+    correlation_dict = correlation_with_attack.to_dict()
+
+    return correlation_dict
+
+# an array containing the correlation for each column with the attack column
+weights = attack_correlation(df)
+
+def z_score(df2, thresholds1, weights2):
     result = {}
+    predictions = []
 
-    for column in df2.columns:
-        # Skip non-numeric columns and the target 'class' column
-        if df2.dtypes[column] in ['int64', 'float64'] and column != 'class':
-            # Calculate Z-scores for the column
-            mean = df2[column].mean()  # Mean for the column
-            std = df2[column].std()  # Standard deviation for the column
-            z_scores = (df2[column] - mean) / std  # Z-scores
+    # Loop through each row to calculate weighted Z-scores and determine predictions
+    for index, row in df2.iterrows():
+        total_weighted_z_score = 0  # Sum of weighted Z-scores for this row
 
-            # Split Z-scores based on 'class' column
-            normal_scores = z_scores[df2['class'] == 'normal']
-            anomaly_scores = z_scores[df2['class'] == 'anomaly']
+        for i, column in enumerate(df2.columns):
+            if df2.dtypes[column] in ['int64', 'float64']:
+                # Calculate Z-score for the current cell
+                mean = df2[column].mean()
+                std = df2[column].std()
+                z_score = (row[column] - mean) / std
 
-            result[column] = {}
+                # Apply the corresponding weight from attack_correlation
+                weighted_z_score = z_score * weights[column]
+                total_weighted_z_score += abs(weighted_z_score)  # Sum of absolute weighted Z-scores
 
-            # Check anomalies at each threshold
-            for threshold in thresholds1:
-                # Find anomalies where Z-score exceeds the threshold
-                normal_anomalies = normal_scores[abs(normal_scores) > threshold]
-                detected_anomalies = anomaly_scores[abs(anomaly_scores) > threshold]
+                # Store results by column and threshold for analysis
+                if column not in result:
+                    result[column] = {}
 
-                # Store counts of anomalies for each threshold
-                result[column][threshold] = {
-                    'normal_count_above_threshold': len(normal_anomalies),
-                    'anomaly_count_above_threshold': len(detected_anomalies)
-                }
+                for threshold in thresholds1:
+                    # Count anomalies based on threshold for normal vs. anomaly separation
+                    is_anomaly = abs(weighted_z_score) > threshold
+                    result[column].setdefault(threshold, {'normal_count_above_threshold': 0, 'anomaly_count_above_threshold': 0})
 
-                # Print the results for this feature and threshold
-                print(f"Feature '{column}' with threshold {threshold}:")
-                print(f"  Normal count above threshold: {len(normal_anomalies)}")
-                print(f"  Anomaly count above threshold: {len(detected_anomalies)}\n")
+                    # Track if the row is normal or anomaly for this threshold
+                    if row['class'] == 'normal' and is_anomaly:
+                        result[column][threshold]['normal_count_above_threshold'] += 1
+                    elif row['class'] == 'anomaly' and is_anomaly:
+                        result[column][threshold]['anomaly_count_above_threshold'] += 1
 
-    return result
+        # Determine the prediction based on total weighted Z-score
+        anomaly_threshold = max(thresholds1)  # You can adjust this based on your criteria
+        if total_weighted_z_score > anomaly_threshold:
+            predictions.append('anomaly')
+        else:
+            predictions.append('normal')
+
+    # Add predictions to the DataFrame
+    df2['Predict'] = predictions
+    return result, df2
 
 # Example usage
 thresholds = [1.5, 2.0, 2.5, 3.0]
-#anomaly_results = z_score(df, thresholds)
+#z_results = z_score(df, thresholds,weights)
 
 def performance_metrics(df3):
     actual= (df3['class'] == 'anomaly').astype(int) # if the class data is an anomaly it will be stored as 1 and if the data
@@ -420,59 +450,3 @@ def plot_cond_pmf(df_5):
 
 #plot_cond_pmf(df)
 #best_fit_distribution(df)
-def z_score(df1, thresholds1):
-    result = {}
-
-    for column in df1.columns:
-        # Skip non-numeric columns and the target 'class' column
-        if df1.dtypes[column] in ['int64', 'float64'] and column != 'class':
-            # Calculate Z-scores for the column
-            mean = df1[column].mean()  # Mean for the column
-            std = df1[column].std()  # Standard deviation for the column
-            z_scores = (df1[column] - mean) / std  # Z-scores
-
-            # Split Z-scores based on 'class' column
-            normal_scores = z_scores[df1['class'] == 'normal']
-            anomaly_scores = z_scores[df1['class'] == 'anomaly']
-
-            result[column] = {}
-
-            # Check anomalies at each threshold
-            for threshold in thresholds1:
-                # Find anomalies where Z-score exceeds the threshold
-                normal_anomalies = normal_scores[abs(normal_scores) > threshold]
-                detected_anomalies = anomaly_scores[abs(anomaly_scores) > threshold]
-
-                # Store counts of anomalies for each threshold
-                result[column][threshold] = {
-                    'normal_count_above_threshold': len(normal_anomalies),
-                    'anomaly_count_above_threshold': len(detected_anomalies)
-                }
-
-                # Print the results for this feature and threshold
-                print(f"Feature '{column}' with threshold {threshold}:")
-                print(f"  Normal count above threshold: {len(normal_anomalies)}")
-                print(f"  Anomaly count above threshold: {len(detected_anomalies)}\n")
-
-    return result
-
-# Example usage
-#thresholds = [1.5, 2.0, 2.5, 3.0]
-#anomaly_results = z_score(df, thresholds)
-
-def performace_metrics(df3):
-    x = (df3['class'] == 'normal').astype(int)
-    y = (df3['flag'] == 'SF').astype(int)
-    matrix = confusion_matrix(x,y)
-    if matrix.shape == (2,2):
-        tn, fp, fn, tp = matrix.ravel()
-        accuracy = (tp + tn) / (tp + tn + fp + fn)
-        precision = tp / (tp + fp)
-        recall = tp / (tp + fn)
-        print(f"Accuracy: {accuracy}")
-        print(f"Precision: {precision}")
-        print(f"Recall: {recall}")
-    else:
-        print("wrong data set")
-
-performace_metrics(testing_df)
