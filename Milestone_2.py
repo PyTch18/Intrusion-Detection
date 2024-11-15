@@ -1,14 +1,9 @@
-import array
-
 import numpy as np
 import pandas as pd
-from IPython.core.display_functions import display
 from distfit import distfit
 from matplotlib import pyplot as plt
 from scipy import stats
 from sklearn.metrics import confusion_matrix
-from sklearn.metrics import confusion_matrix
-import seaborn as sns
 import scipy.stats as stats
 
 #import the dataframe
