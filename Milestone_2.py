@@ -123,7 +123,7 @@ def z_score(df2, thresholds1):
                 # Apply weight
                 weight = column_weights.get(column, 0)  # Default weight is 0 if not in column_weights
                 weighted_z_score = z_score_2 * weight
-                total_weighted_z_score += abs(weighted_z_score)
+                total_weighted_z_score += (weighted_z_score)
 
                 # Store results by column and threshold for analysis
                 if column not in result:
@@ -131,7 +131,7 @@ def z_score(df2, thresholds1):
 
                 for threshold in thresholds1:
                     # Count anomalies based on threshold for normal vs. anomaly separation
-                    is_anomaly = abs(weighted_z_score) > threshold
+                    is_anomaly = weighted_z_score > threshold
                     result[column].setdefault(threshold, {'normal_count_above_threshold': 0, 'anomaly_count_above_threshold': 0})
 
                     # Track if the row is normal or anomaly for this threshold
@@ -152,24 +152,12 @@ def z_score(df2, thresholds1):
 # Example usage
 thresholds = [1.5, 2.0, 2.5, 3.0]
 predict, z_results = z_score(df, thresholds)
-print(predict)
+#print(predict)
 
-def performance_metrics(df3):
+def performance_metrics(df3, pridect_3):
     actual= (df3['class'] == 'anomaly').astype(int) # if the class data is an anomaly it will be stored as 1 and if the data
                                                     # is normal it will be stored as 0
-    predicted = array.array('i')
-    for rows in df3.rows:
-        error = 0
-        for column in df3.columns:
-            if df.dtypes[column] in ['int64', 'float64'] and column != 'class':
-                x_value = df3[column,rows]
-                if z_score(x_value, thresholds) > thresholds[0]:
-                    error += 1
-        if error >= 6:
-            predicted.append(1) # anomaly
-        else:
-            predicted.append(0) # normal
-    matrix = confusion_matrix(actual,predicted)
+    matrix = confusion_matrix(actual,pridect_3)
     if matrix.shape == (2,2):
         tn, fp, fn, tp = matrix.ravel()
         accuracy = (tp + tn) / (tp + tn + fp + fn)
@@ -181,7 +169,7 @@ def performance_metrics(df3):
     else:
         print("wrong data set")
 
-#performance_metrics(df)
+performance_metrics(df, predict)
 
 # Task 2 part (III)
 # Summarize best-fit PDF for numerical columns
