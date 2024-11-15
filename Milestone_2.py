@@ -15,7 +15,7 @@ selected_df = df.iloc[:,0:41]
 
 training_df = selected_df.iloc[:int(df.shape[0]*0.7),:]
 testing_df = selected_df.iloc[int(df.shape[0]*0.7):, :]
-
+'''
 #task 2 part 1 (i)
 #to determine the best distribution we will use distfit as it trys the data on 89 different distributions
 def best_fit_distribution_1(df1):
@@ -239,27 +239,20 @@ def plot_conditional_pdfs(df):
     # Select only numerical columns, excluding the 'class' column
     numerical_columns = df.select_dtypes(include=[np.number]).columns
     numerical_columns = [col for col in numerical_columns if col != 'class']
-
+    variance_threshold = 1e-5
+    unique_values_threshold = 10
     # Get unique values in the 'class' column to condition on
     class_values = df['class'].unique()
 
-    # Define thresholds
-    variance_threshold = 1e-3
-    unique_values_threshold = 20
-
     # Loop through each numerical column and fit best distributions conditioned on each class value
     for column in numerical_columns:
-        # Check for low variance or low unique values
+        # Check if the column has low variance or unique values, and skip if it's unsuitable for PDF fitting
         column_variance = df[column].var()
         column_unique_values = df[column].nunique()
 
-        if column_variance < variance_threshold:
-            print(f"Skipping '{column}' due to low variance.")
-            continue  # Skip this column if variance is too low
-
-        if column_unique_values < unique_values_threshold:
-            print(f"Skipping '{column}' due to low unique values.")
-            continue  # Skip this column if it has too few unique values
+        if column_variance < variance_threshold or column_unique_values < unique_values_threshold:
+            print(f"Skipping '{column}' due to low variance or low unique values.")
+            continue
 
         # Plot PDFs conditioned on each class value
         plt.figure(figsize=(12, 6))
@@ -267,19 +260,27 @@ def plot_conditional_pdfs(df):
 
         # Loop through each class value and fit the best PDF for that subset
         for value in class_values:
-            # Filter the data for the current class value
+            # Filter the data for the current class value and adjust the range to exclude outliers
             data_conditioned = df[df['class'] == value][column].dropna()
+'''
 
-            if data_conditioned.var() < variance_threshold:
-                print(f"Skipping '{column}' for class '{value}' due to low variance in subset.")
-                continue
+            # Ensure the subset meets minimum data and variance thresholds to avoid empty or sparse graphs
+         #   data_conditioned.var() < variance_threshold:
+         #       print(f"Skipping '{column}' for class '{value}' due to insufficient data points or low variance.")
+          #      continue
+
+'''
+            # Limit the range for PDF calculation to reduce the influence of outliers
+            lower_bound, upper_bound = np.percentile(data_conditioned, [1, 99])
+            data_in_range = data_conditioned[(data_conditioned >= lower_bound) & (data_conditioned <= upper_bound)]
 
             # Fit the best distribution using distfit
             try:
-                dist.fit_transform(data_conditioned ,  verbose=0)
-                # Plot the best fit
+                dist.fit_transform(data_in_range, verbose=0)
+
+                # Plot the best fit for each class condition
                 dist.plot()
-                plt.plot([], [], ' ', label=f'class = {value}')
+                plt.plot([], [], ' ', label=f'class = {value}')  # Dummy plot for legend
             except Exception as e:
                 print(f"Error fitting distribution for column '{column}' with class '{value}': {e}")
                 continue  # Skip if fitting fails for this subset
@@ -293,7 +294,7 @@ def plot_conditional_pdfs(df):
 
 
 # Call the function with the DataFrame
-#plot_conditional_pdfs(df)
+plot_conditional_pdfs(df)
 
 # Function to calculate MSE between empirical and fitted PDF
 def calculate_mse(empirical_pdf, fitted_pdf):
@@ -412,6 +413,164 @@ def best_fit_mse(df):
         plt.grid(True)
         plt.show()
 #best_fit_mse(df)
+'''
+
+
+def plot_conditional_pdfs_1(df, unique_values_threshold=10):
+    # Select only numerical columns, excluding the 'class' column
+    numerical_columns = df.select_dtypes(include=[np.number]).columns
+    numerical_columns = [col for col in numerical_columns if col != 'class']
+
+    # Filter only the class values we are interested in (e.g., 'normal' and 'anomaly')
+    class_values = ['normal', 'anomaly']
+
+    # Loop through each numerical column
+    for column in numerical_columns:
+        # Check if the column has enough unique values to plot
+        if df[column].nunique() < unique_values_threshold:
+            print(f"Skipping '{column}' due to low unique values.")
+            continue
+
+        # Create a figure for the column
+        plt.figure(figsize=(10, 6))
+        plt.title(f'PDF of {column} (Original, Normal, and Anomaly)')
+
+        # Plot Original PDF (unconditioned)
+        sns.histplot(df[column].dropna(), kde=False, stat='density', label='Original', color='blue', bins=20)
+
+        # Plot Conditioned PDFs for each class value
+        for value in class_values:
+            # Filter data for the current class value
+            data_conditioned = df[df['class'] == value][column].dropna()
+            label = f'Conditioned on {value.capitalize()}'
+            color = 'green' if value == 'normal' else 'red'
+
+            # Plot the KDE for the conditioned data
+            sns.histplot(data_conditioned, kde=True, stat='density', label=label, color=color, bins=20)
+
+        # Display plot settings
+        plt.xlabel(column)
+        plt.ylabel('Density')
+        plt.legend(title="Condition")
+        plt.grid(True)
+        plt.show()
+
+#plot_conditional_pdfs_1(df)
+
+
+def calculate_mse(empirical_counts, fitted_pdf):
+    """Calculate Mean Squared Error (MSE) between empirical data and fitted PDF."""
+    return np.mean((empirical_counts - fitted_pdf) ** 2)
+
+
+def best_fit_distribution(data, bin_centers, distributions):
+    """Find the best-fitting distribution by calculating MSE for each."""
+    best_mse = float('inf')
+    best_distribution = None
+    best_params = None
+
+    # Calculate empirical counts based on bin centers
+    empirical_counts, _ = np.histogram(data, bins=len(bin_centers), range=(bin_centers.min(), bin_centers.max()),
+                                       density=True)
+
+    for distribution in distributions:
+        try:
+            # Fit the distribution to data
+            params = distribution.fit(data)
+
+            # Calculate the PDF with fitted parameters
+            fitted_pdf = distribution.pdf(bin_centers, *params)
+
+            # Check shapes before calculating MSE
+            if len(empirical_counts) != len(fitted_pdf):
+                print(
+                    f"Shape mismatch: empirical_counts has length {len(empirical_counts)}, fitted_pdf has length {len(fitted_pdf)} for {distribution.name}")
+                continue
+
+            # Calculate MSE
+            mse = calculate_mse(empirical_counts, fitted_pdf)
+
+            # Update best distribution if this one has the lowest MSE
+            if mse < best_mse:
+                best_mse = mse
+                best_distribution = distribution
+                best_params = params
+        except Exception as e:
+            print(f"Error fitting {distribution.name}: {e}")
+            continue
+
+    return best_distribution, best_params, best_mse
+
+
+def plot_conditional_pdfs(df, unique_values_threshold=10):
+    # Define a list of distributions to test
+    distributions = [
+        stats.alpha, stats.norm, stats.expon, stats.gamma, stats.pareto, stats.beta, stats.lognorm, stats.weibull_min,
+        stats.weibull_max, stats.t, stats.f, stats.chi2, stats.gumbel_r, stats.gumbel_l, stats.dweibull,
+        stats.genextreme, stats.uniform , stats.arcsine, stats.cosine, stats.exponnorm, stats.foldcauchy
+    ]
+
+    # Select only numerical columns, excluding the 'class' column
+    numerical_columns = df.select_dtypes(include=[np.number]).columns
+    numerical_columns = [col for col in numerical_columns if col != 'class']
+
+    # Define conditions
+    class_conditions = {
+        'Original': df,
+        'Normal': df[df['class'] == 'normal'],
+        'Anomaly': df[df['class'] == 'anomaly']
+    }
+
+    # Loop through each numerical column
+    for column in numerical_columns:
+        # Check if the column has enough unique values
+        if df[column].nunique() < unique_values_threshold:
+            print(f"Skipping '{column}' due to low unique values.")
+            continue
+
+        # Calculate the IQR and determine if we should adjust the x-axis range
+        q1, q3 = np.percentile(df[column].dropna(), [25, 75])
+        iqr = q3 - q1
+        if df[column].max() > q3 + 10 * iqr or df[column].min() < q1 - 10 * iqr:
+            lower_bound, upper_bound = np.percentile(df[column].dropna(), [0 , 97])
+        else:
+            lower_bound, upper_bound = df[column].min(), df[column].max()
+
+        # Set up plot with restricted x-axis range for extreme data
+        plt.figure(figsize=(10, 6))
+        plt.title(f'PDF of {column} with Best Fit (Original, Normal, and Anomaly)')
+
+        # Plot PDFs and find best fit for each condition
+        colors = {'Original': 'blue', 'Normal': 'green', 'Anomaly': 'red'}
+        for condition_name, condition_data in class_conditions.items():
+            data_conditioned = condition_data[column].dropna()
+
+            # Plot the empirical PDF for the condition
+            sns.histplot(data_conditioned, kde=True , stat='density', label=condition_name,
+                         color=colors[condition_name], bins=15, element='step')
+
+            # Calculate best-fitting distribution using MSE
+            bin_edges = np.linspace(lower_bound, upper_bound, 15)
+            bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+
+            best_distribution, best_params, best_mse = best_fit_distribution(data_conditioned, bin_centers,
+                                                                             distributions)
+
+            # Plot the best-fitting PDF as a dotted line
+            if best_distribution:
+                fitted_pdf = best_distribution.pdf(bin_centers, *best_params)
+                plt.plot(bin_centers, fitted_pdf, linestyle='--', color=colors[condition_name],
+                         label=f'Best Fit ({condition_name}): {best_distribution.name} (MSE={best_mse:.5f})')
+
+        # Display plot settings
+        plt.xlim(lower_bound, upper_bound)
+        plt.xlabel(column)
+        plt.ylabel('Density')
+        plt.legend(title="Condition")
+        plt.grid(True)
+        plt.show()
+
+#plot_conditional_pdfs(df) #this is the most correct thing I made so far please try run it
 
 def pmf_plot(df):
     for column in df.columns:
