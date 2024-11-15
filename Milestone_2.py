@@ -78,9 +78,6 @@ def attack_correlation(df_full):
 
     return correlation_dict
 
-# an array containing the correlation for each column with the attack column
-weights = attack_correlation(df)
-
 def z_score(df2, thresholds1, weights2):
     result = {}
     predictions = []
@@ -126,9 +123,11 @@ def z_score(df2, thresholds1, weights2):
     df2['Predict'] = predictions
     return result, df2
 
+# an array containing the correlation for each column with the attack column
+weights = attack_correlation(df)
 # Example usage
 thresholds = [1.5, 2.0, 2.5, 3.0]
-#z_results = z_score(df, thresholds,weights)
+z_results = z_score(df, thresholds,weights)
 
 def performance_metrics(df3):
     actual= (df3['class'] == 'anomaly').astype(int) # if the class data is an anomaly it will be stored as 1 and if the data
