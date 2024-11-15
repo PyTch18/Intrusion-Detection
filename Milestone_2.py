@@ -89,39 +89,98 @@ def performance_metrics(df3):
 
 #performance_metrics(df)
 
-# Task 2 part (III)
-# Summarize best-fit PDF for numerical columns
-def document_best_fit_pdf(df91):
-    dist = distfit()
-    result_summary = {}
-    for column in df91.select_dtypes(include=[np.number]).columns:
-        if df91[column].nunique() < 10:
-            print(f"Skipping '{column}' due to insufficient unique values.")
-            continue
-        if df91[column].var() < 1e-5:
-            print(f"Skipping '{column}' due to low variance.")
-            continue
+def calculate_mse(empirical_counts, fitted_pdf):
+    """Calculate Mean Squared Error (MSE) between empirical data and fitted PDF."""
+    return np.mean((empirical_counts - fitted_pdf) ** 2)
+
+def best_fit_distribution(data, bin_centers, distributions):
+    """Find the best-fitting distribution by calculating MSE for each."""
+    best_mse = float('inf')
+    best_distribution = None
+    best_params = None
+
+    # Calculate empirical counts based on bin centers
+    empirical_counts, _ = np.histogram(data, bins=len(bin_centers), range=(bin_centers.min(), bin_centers.max()),
+                                       density=True)
+
+    for distribution in distributions:
         try:
-            lower_bound = np.percentile(df91[column].dropna(), 2)
-            upper_bound = np.percentile(df91[column].dropna(), 98)
-            filtered_data = df91[(df91[column] >= lower_bound) & (df91[column] <= upper_bound)][column]
-            dist.fit_transform(filtered_data.dropna())
-            best_distribution = dist.model
-            result_summary[column] = {
-                'best_fit_distribution': best_distribution['name'],
-                'params': best_distribution['params']
-            }
+            # Fit the distribution to data
+            params = distribution.fit(data)
+
+            # Calculate the PDF with fitted parameters
+            fitted_pdf = distribution.pdf(bin_centers, *params)
+
+            # Check shapes before calculating MSE
+            if len(empirical_counts) != len(fitted_pdf):
+                print(
+                    f"Shape mismatch: empirical_counts has length {len(empirical_counts)}, fitted_pdf has length {len(fitted_pdf)} for {distribution.name}")
+                continue
+
+            # Calculate MSE
+            mse = calculate_mse(empirical_counts, fitted_pdf)
+
+            # Update best distribution if this one has the lowest MSE
+            if mse < best_mse:
+                best_mse = mse
+                best_distribution = distribution
+                best_params = params
+        except Exception as e:
+            print(f"Error fitting {distribution.name}: {e}")
+            continue
+
+    return best_distribution, best_params, best_mse
+
+# Task 2 part (III)
+# Summarize best-fit distributions for numerical columns
+def document_best_fit_pdf(df91, class_column='class'):
+    distributions = [
+        stats.alpha, stats.norm, stats.expon, stats.gamma, stats.pareto, stats.beta, stats.lognorm, stats.weibull_min,
+        stats.weibull_max, stats.t, stats.f, stats.chi2, stats.gumbel_r, stats.gumbel_l, stats.dweibull,
+        stats.genextreme, stats.uniform, stats.arcsine, stats.cosine, stats.exponnorm, stats.foldcauchy
+    ]
+    result_summary = {}
+
+    for column in df91.select_dtypes(include=[np.number]).columns:
+        if column == class_column or df91[column].nunique() < 10 or df91[column].var() < 1e-5:
+            print(f"Skipping '{column}' due to low variance or insufficient unique values.")
+            continue
+
+        # Filter extreme values (2nd to 98th percentiles)
+        lower_bound = np.percentile(df91[column].dropna(), 2)
+        upper_bound = np.percentile(df91[column].dropna(), 98)
+        filtered_data = df91[(df91[column] >= lower_bound) & (df91[column] <= upper_bound)][column].dropna()
+
+        # Use the provided best_fit_distribution function to determine the best fit
+        try:
+            bin_edges = np.linspace(lower_bound, upper_bound, 15)
+            bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+            best_distribution, best_params, best_mse = best_fit_distribution(filtered_data, bin_centers, distributions)
+
+            if best_distribution:
+                result_summary[column] = {
+                    'best_fit_distribution': best_distribution.name,
+                    'params': best_params,
+                    'mse': best_mse
+                }
         except Exception as e:
             print(f"Error fitting distribution for '{column}': {e}")
     return result_summary
 
 # Summarize PMF data for categorical columns
-def document_pmf_data(df92):
+def document_pmf_data(df92, class_column='class'):
     pmf_summary = {}
     for column in df92.select_dtypes(include=['object']).columns:
         try:
-            pmf = df92[column].value_counts(normalize=True)
-            pmf_summary[column] = pmf.to_dict()  # Store PMF as dictionary for future reference
+            pmf_summary[column] = {}
+            # Overall PMF
+            overall_pmf = df92[column].value_counts(normalize=True).to_dict()
+            pmf_summary[column]['overall'] = overall_pmf
+
+            # Class-conditioned PMFs
+            for class_value in df92[class_column].unique():
+                conditioned_pmf = df92[df92[class_column] == class_value][column].value_counts(normalize=True).to_dict()
+                pmf_summary[column][class_value] = conditioned_pmf
         except Exception as e:
             print(f"Error calculating PMF for '{column}': {e}")
     return pmf_summary
@@ -141,13 +200,22 @@ def print_summary(numerical_summary, categorical_summary):
         print(f"  - Column: {column}")
         print(f"    Best-Fit Distribution: {info['best_fit_distribution']}")
         print(f"    Parameters: {info['params']}")
+        print(f"    Mean Squared Error (MSE): {info['mse']:.5f}")
+        print("\n")
 
-    print("\nPMF Summary (Categorical Columns):")
+    print("PMF Summary (Categorical Columns):")
     for column, pmf in categorical_summary.items():
-        print(f"  - Column: {column}")
-        print("    PMF:")
-        for value, probability in pmf.items():
+        print(f"\n  - Column: {column}")
+        print("    Overall PMF:")
+        for value, probability in pmf['overall'].items():
             print(f"      {value}: {probability:.4f}")
 
-ns,cs = document_analysis_results(df)
+        for class_value, class_pmf in pmf.items():
+            if class_value == 'overall':
+                continue
+            print(f"    PMF Conditioned on {class_value}:")
+            for value, probability in class_pmf.items():
+                print(f"      {value}: {probability:.4f}")
+    print("\n")
+ns, cs = document_analysis_results(df)
 print_summary(ns, cs)
