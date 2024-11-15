@@ -357,7 +357,7 @@ def plot_conditional_pdfs(df, unique_values_threshold=10):
         q1, q3 = np.percentile(df[column].dropna(), [25, 75])
         iqr = q3 - q1
         if df[column].max() > q3 + 10 * iqr or df[column].min() < q1 - 10 * iqr:
-            lower_bound, upper_bound = np.percentile(df[column].dropna(), [2, 98])
+            lower_bound, upper_bound = np.percentile(df[column].dropna(), [0 , 97])
         else:
             lower_bound, upper_bound = df[column].min(), df[column].max()
 
@@ -372,10 +372,10 @@ def plot_conditional_pdfs(df, unique_values_threshold=10):
 
             # Plot the empirical PDF for the condition
             sns.histplot(data_conditioned, kde=True , stat='density', label=condition_name,
-                         color=colors[condition_name], bins=10, element='step')
+                         color=colors[condition_name], bins=15, element='step')
 
             # Calculate best-fitting distribution using MSE
-            bin_edges = np.linspace(lower_bound, upper_bound, 10)
+            bin_edges = np.linspace(lower_bound, upper_bound, 15)
             bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
 
             best_distribution, best_params, best_mse = best_fit_distribution(data_conditioned, bin_centers,
