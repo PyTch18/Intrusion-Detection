@@ -101,13 +101,17 @@ def z_score(df2, threshold,weights2):
 
 # Example usage
 thresholds = [1.5, 2.0, 2.5, 3.0]
-#predict = z_score(training_df, thresholds[0], weights)
+# 1.5 gave the best recall and accuracy so smaller thresholds were tried till 0.5
+# 0.5 gave the best results in terms of recall and accuracy
+# smaller values has higher recall but lower accuracy and precision
+#predict = z_score(training_df, 0.5, weights)
 #print(predict)
 
 # For Accuracy and recall threshold of 1.5 is better
 # For precision a threshold of 3.0 is the better
 
-testing_predict = z_score(testing_df, thresholds[0], weights)
+# threshold of 0.5 is the best with max accuracy and recall
+testing_predict = z_score(testing_df, 0.5, weights)
 
 def performance_metrics(attack_3, pridect_3):
     attack_3 = attack_3.apply(lambda x: 1 if x == 'anomaly' else 0)
