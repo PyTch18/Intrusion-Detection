@@ -89,48 +89,6 @@ def performance_metrics(df3):
 
 #performance_metrics(df)
 
-def calculate_mse(empirical_counts, fitted_pdf):
-    """Calculate Mean Squared Error (MSE) between empirical data and fitted PDF."""
-    return np.mean((empirical_counts - fitted_pdf) ** 2)
-
-def best_fit_distribution(data, bin_centers, distributions):
-    """Find the best-fitting distribution by calculating MSE for each."""
-    best_mse = float('inf')
-    best_distribution = None
-    best_params = None
-
-    # Calculate empirical counts based on bin centers
-    empirical_counts, _ = np.histogram(data, bins=len(bin_centers), range=(bin_centers.min(), bin_centers.max()),
-                                       density=True)
-
-    for distribution in distributions:
-        try:
-            # Fit the distribution to data
-            params = distribution.fit(data)
-
-            # Calculate the PDF with fitted parameters
-            fitted_pdf = distribution.pdf(bin_centers, *params)
-
-            # Check shapes before calculating MSE
-            if len(empirical_counts) != len(fitted_pdf):
-                print(
-                    f"Shape mismatch: empirical_counts has length {len(empirical_counts)}, fitted_pdf has length {len(fitted_pdf)} for {distribution.name}")
-                continue
-
-            # Calculate MSE
-            mse = calculate_mse(empirical_counts, fitted_pdf)
-
-            # Update best distribution if this one has the lowest MSE
-            if mse < best_mse:
-                best_mse = mse
-                best_distribution = distribution
-                best_params = params
-        except Exception as e:
-            print(f"Error fitting {distribution.name}: {e}")
-            continue
-
-    return best_distribution, best_params, best_mse
-
 # Task 2 part (III)
 # Summarize best-fit distributions for numerical columns
 def document_best_fit_pdf(df91, class_column='class'):
