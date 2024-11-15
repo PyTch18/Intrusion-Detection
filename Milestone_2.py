@@ -8,13 +8,14 @@ import scipy.stats as stats
 
 #import the dataframe
 df = pd.read_csv("Train_data.csv")
-#choose all the dataframe except the class column
-selected_df = df.iloc[:,0:41]
 #selected_df = df.drop(columns=['class'])
 #display(selected_df.to_string())
 
-training_df = selected_df.iloc[:int(df.shape[0]*0.7),:]
-testing_df = selected_df.iloc[int(df.shape[0]*0.7):, :]
+training_df = df.iloc[:int(df.shape[0]*0.7),:]
+training_attack = training_df['class']
+testing_df = df.iloc[int(df.shape[0]*0.7):, :]
+testing_attack = testing_df['class']
+
 
 #Task 1_2
 def attack_correlation(df_full):
@@ -38,13 +39,19 @@ def attack_correlation(df_full):
 
     return correlation_dict
 
+weights = attack_correlation(training_df)
 
-def z_score(df2, thresholds1):
+#choose all the dataframe except the class column
+
+selected_df = df.iloc[:,0:41]
+training_df = selected_df.iloc[:int(df.shape[0]*0.7),:]
+testing_df = selected_df.iloc[int(df.shape[0]*0.7):, :]
+
+
+
+def z_score(df2, threshold,weights2):
     # Get the weights (correlations) for numeric columns
-    weights = attack_correlation(df2)
-    print(f"Weights: {weights}")  # Debugging: Print weights
-
-    result = {}
+    print(f"Weights: {weights2}")  # Debugging: Print weights
     predictions = []
 
     # Get the numeric columns
@@ -52,14 +59,14 @@ def z_score(df2, thresholds1):
     print(f"Numeric Columns: {list(numeric_columns)}")  # Debugging: Print numeric columns
 
     # Filter out columns with zero correlation
-    valid_columns = [col for col in numeric_columns if weights.get(col, 0) != 0]
+    valid_columns = [col for col in numeric_columns if weights2.get(col, 0) != 0]
     print(f"Valid Columns (Non-zero Correlation): {valid_columns}")  # Debugging: Print valid columns
 
     if not valid_columns:
         raise ValueError("No columns have a valid (non-zero) correlation")
 
     # Create a mapping of valid column names to their corresponding weights
-    column_weights = {col: weights[col] for col in valid_columns}
+    column_weights = {col: weights2[col] for col in valid_columns}
     print(f"Column Weights Mapping (Valid Columns): {column_weights}")  # Debugging: Print column-weights mapping
 
     # Loop through each row to calculate weighted Z-scores and determine predictions
@@ -81,41 +88,27 @@ def z_score(df2, thresholds1):
                 # Apply weight
                 weight = column_weights.get(column, 0)  # Default weight is 0 if not in column_weights
                 weighted_z_score = z_score_2 * weight
-                total_weighted_z_score += (weighted_z_score)
-
-                # Store results by column and threshold for analysis
-                if column not in result:
-                    result[column] = {}
-
-                for threshold in thresholds1:
-                    # Count anomalies based on threshold for normal vs. anomaly separation
-                    is_anomaly = weighted_z_score > threshold
-                    result[column].setdefault(threshold, {'normal_count_above_threshold': 0, 'anomaly_count_above_threshold': 0})
-
-                    # Track if the row is normal or anomaly for this threshold
-                    if row['class'] == 'normal' and is_anomaly:
-                        result[column][threshold]['normal_count_above_threshold'] += 1
-                    elif row['class'] == 'anomaly' and is_anomaly:
-                        result[column][threshold]['anomaly_count_above_threshold'] += 1
+                total_weighted_z_score += weighted_z_score
 
         # Determine the prediction based on total weighted Z-score
-        anomaly_threshold = max(thresholds1)  # Adjust this logic as needed
+        anomaly_threshold = threshold  # Adjust this logic as needed
         if total_weighted_z_score > anomaly_threshold:
             predictions.append(1)  # The 1 here is indicating anomaly
         else:
             predictions.append(0)  # The 0 here is indicating normal
 
-    return predictions, result
+    return predictions
 
 # Example usage
 thresholds = [1.5, 2.0, 2.5, 3.0]
-predict, z_results = z_score(df, thresholds)
+#predict = z_score(training_df, thresholds[3], weights)
 #print(predict)
 
-def performance_metrics(df3, pridect_3):
-    actual= (df3['class'] == 'anomaly').astype(int) # if the class data is an anomaly it will be stored as 1 and if the data
-                                                    # is normal it will be stored as 0
-    matrix = confusion_matrix(actual,pridect_3)
+testing_predict = z_score(testing_df, thresholds[0], weights)
+
+def performance_metrics(attack_3, pridect_3):
+    attack_3 = attack_3.apply(lambda x: 1 if x == 'anomaly' else 0)
+    matrix = confusion_matrix(attack_3,pridect_3)
     if matrix.shape == (2,2):
         tn, fp, fn, tp = matrix.ravel()
         accuracy = (tp + tn) / (tp + tn + fp + fn)
@@ -127,7 +120,10 @@ def performance_metrics(df3, pridect_3):
     else:
         print("wrong data set")
 
-performance_metrics(df, predict)
+#performance_metrics(training_attack, predict)
+
+performance_metrics(testing_attack, testing_predict)
+
 
 
 #task 2 part 1 (i)
