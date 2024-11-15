@@ -101,8 +101,11 @@ def z_score(df2, threshold,weights2):
 
 # Example usage
 thresholds = [1.5, 2.0, 2.5, 3.0]
-#predict = z_score(training_df, thresholds[3], weights)
+#predict = z_score(training_df, thresholds[0], weights)
 #print(predict)
+
+# For Accuracy and recall threshold of 1.5 is better
+# For precision a threshold of 3.0 is the better
 
 testing_predict = z_score(testing_df, thresholds[0], weights)
 
