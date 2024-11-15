@@ -21,7 +21,6 @@ selected_df = df.iloc[:,0:41]
 training_df = selected_df.iloc[:int(df.shape[0]*0.7),:]
 testing_df = selected_df.iloc[int(df.shape[0]*0.7):, :]
 
-
 #task 2 part 1 (i)
 #to determine the best distribution we will use distfit as it trys the data on 89 different distributions
 def best_fit_distribution_1(df1):
@@ -73,29 +72,58 @@ def attack_correlation(df_full):
     # Drop the temporary 'class_encoded' column
     df_full.drop(columns=['class_encoded'], inplace=True)
 
-    # Convert the result to a dictionary or array (optional)
+    # Convert the result to a dictionary where the column name is the key and correlation is the value
     correlation_dict = correlation_with_attack.to_dict()
+
+    # Replace NaN values with 0 to avoid issues with filtering
+    correlation_dict = {k: (v if pd.notna(v) else 0) for k, v in correlation_dict.items()}
 
     return correlation_dict
 
-def z_score(df2, thresholds1, weights2):
+
+def z_score(df2, thresholds1):
+    # Get the weights (correlations) for numeric columns
+    weights = attack_correlation(df2)
+    print(f"Weights: {weights}")  # Debugging: Print weights
+
     result = {}
     predictions = []
+
+    # Get the numeric columns
+    numeric_columns = df2.select_dtypes(include=['int64', 'float64']).columns
+    print(f"Numeric Columns: {list(numeric_columns)}")  # Debugging: Print numeric columns
+
+    # Filter out columns with zero correlation
+    valid_columns = [col for col in numeric_columns if weights.get(col, 0) != 0]
+    print(f"Valid Columns (Non-zero Correlation): {valid_columns}")  # Debugging: Print valid columns
+
+    if not valid_columns:
+        raise ValueError("No columns have a valid (non-zero) correlation")
+
+    # Create a mapping of valid column names to their corresponding weights
+    column_weights = {col: weights[col] for col in valid_columns}
+    print(f"Column Weights Mapping (Valid Columns): {column_weights}")  # Debugging: Print column-weights mapping
 
     # Loop through each row to calculate weighted Z-scores and determine predictions
     for index, row in df2.iterrows():
         total_weighted_z_score = 0  # Sum of weighted Z-scores for this row
 
-        for i, column in enumerate(df2.columns):
+        for column in valid_columns:
             if df2.dtypes[column] in ['int64', 'float64']:
-                # Calculate Z-score for the current cell
                 mean = df2[column].mean()
                 std = df2[column].std()
-                z_score = (row[column] - mean) / std
 
-                # Apply the corresponding weight from attack_correlation
-                weighted_z_score = z_score * weights[column]
-                total_weighted_z_score += abs(weighted_z_score)  # Sum of absolute weighted Z-scores
+                # Avoid division by zero
+                if std == 0:
+                    continue
+
+                # Calculate Z-score
+                z_score_2 = (row[column] - mean) / std
+
+                # Apply weight
+                weight = column_weights.get(column, 0)  # Default weight is 0 if not in column_weights
+                weighted_z_score = z_score_2 * weight
+                total_weighted_z_score += abs(weighted_z_score)
 
                 # Store results by column and threshold for analysis
                 if column not in result:
@@ -113,21 +141,18 @@ def z_score(df2, thresholds1, weights2):
                         result[column][threshold]['anomaly_count_above_threshold'] += 1
 
         # Determine the prediction based on total weighted Z-score
-        anomaly_threshold = max(thresholds1)  # You can adjust this based on your criteria
+        anomaly_threshold = max(thresholds1)  # Adjust this logic as needed
         if total_weighted_z_score > anomaly_threshold:
-            predictions.append('anomaly')
+            predictions.append(1)  # The 1 here is indicating anomaly
         else:
-            predictions.append('normal')
+            predictions.append(0)  # The 0 here is indicating normal
 
-    # Add predictions to the DataFrame
-    df2['Predict'] = predictions
-    return result, df2
+    return predictions, result
 
-# an array containing the correlation for each column with the attack column
-weights = attack_correlation(df)
 # Example usage
 thresholds = [1.5, 2.0, 2.5, 3.0]
-z_results = z_score(df, thresholds,weights)
+predict, z_results = z_score(df, thresholds)
+print(predict)
 
 def performance_metrics(df3):
     actual= (df3['class'] == 'anomaly').astype(int) # if the class data is an anomaly it will be stored as 1 and if the data
@@ -218,8 +243,8 @@ def print_summary(numerical_summary, categorical_summary):
         for value, probability in pmf.items():
             print(f"      {value}: {probability:.4f}")
 
-ns,cs = document_analysis_results(df)
-print_summary(ns, cs)
+#ns,cs = document_analysis_results(df)
+#print_summary(ns, cs)
 #best_fit_distribution_1(df)
 
 #task 2 part(ii)
