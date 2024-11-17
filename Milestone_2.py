@@ -1,14 +1,11 @@
-import array
-
 import numpy as np
 import pandas as pd
 from IPython.core.display_functions import display
 from distfit import distfit
 from matplotlib import pyplot as plt
-from scipy import stats
-from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import scipy.stats as stats
+from sklearn.metrics import confusion_matrix
 
 #import the dataframe
 df = pd.read_csv("Train_data.csv")
@@ -17,65 +14,109 @@ selected_df = df.iloc[:,0:41]
 #selected_df = df.drop(columns=['class'])
 #display(selected_df.to_string())
 
+#Task 1 Part (I)
+training_df = df.iloc[:int(df.shape[0]*0.7),:]
+training_attack = training_df['class']
+testing_df = df.iloc[int(df.shape[0]*0.7):, :]
+testing_attack = testing_df['class']
+
+#Task 1 Part (II)
+
+def attack_correlation(df_full):
+    # Encode the 'class' column as numeric (1 for 'anomaly', 0 for 'normal')
+    encoded_attack = df_full['class'].apply(lambda x: 1 if x == 'anomaly' else 0)
+
+    # Select only numeric columns
+    numeric_df_full = df_full.select_dtypes(include=['int64', 'float64']).copy()
+
+    # Filter out columns with constant values or all NaNs
+    numeric_df_full = numeric_df_full.loc[:, numeric_df_full.nunique() > 1]
+
+    # Calculate correlations of each numeric column with the encoded 'class' column
+    correlation_with_attack = numeric_df_full.apply(lambda x: x.corr(encoded_attack))
+
+    # Convert the result to a dictionary where the column name is the key and correlation is the value
+    correlation_dict = correlation_with_attack.to_dict()
+
+    # Replace NaN values with 0 to avoid issues with filtering
+    correlation_dict = {k: (v if pd.notna(v) else 0) for k, v in correlation_dict.items()}
+
+    return correlation_dict
+weights = attack_correlation(training_df)
+
+#choose all the dataframe except the class column
+
+selected_df = df.iloc[:,0:41]
 training_df = selected_df.iloc[:int(df.shape[0]*0.7),:]
 testing_df = selected_df.iloc[int(df.shape[0]*0.7):, :]
 
-def z_score(df2, thresholds1):
-    result = {}
 
-    for column in df2.columns:
-        # Skip non-numeric columns and the target 'class' column
-        if df2.dtypes[column] in ['int64', 'float64'] and column != 'class':
-            # Calculate Z-scores for the column
-            mean = df2[column].mean()  # Mean for the column
-            std = df2[column].std()  # Standard deviation for the column
-            z_scores = (df2[column] - mean) / std  # Z-scores
+def z_score(df2, threshold,weights2):
+    #print(f"Weights: {weights2}")  # Debugging: Print weights
+    predictions = []
 
-            # Split Z-scores based on 'class' column
-            normal_scores = z_scores[df2['class'] == 'normal']
-            anomaly_scores = z_scores[df2['class'] == 'anomaly']
+    # Get the numeric columns
+    numeric_columns = df2.select_dtypes(include=['int64', 'float64']).columns
+    #print(f"Numeric Columns: {list(numeric_columns)}")  # Debugging: Print numeric columns
 
-            result[column] = {}
+    # Filter out columns with zero correlation
+    valid_columns = [col for col in numeric_columns if weights2.get(col, 0) != 0]
+    #print(f"Valid Columns (Non-zero Correlation): {valid_columns}")  # Debugging: Print valid columns
 
-            # Check anomalies at each threshold
-            for threshold in thresholds1:
-                # Find anomalies where Z-score exceeds the threshold
-                normal_anomalies = normal_scores[abs(normal_scores) > threshold]
-                detected_anomalies = anomaly_scores[abs(anomaly_scores) > threshold]
+    if not valid_columns:
+        raise ValueError("No columns have a valid (non-zero) correlation")
 
-                # Store counts of anomalies for each threshold
-                result[column][threshold] = {
-                    'normal_count_above_threshold': len(normal_anomalies),
-                    'anomaly_count_above_threshold': len(detected_anomalies)
-                }
+    # Create a mapping of valid column names to their corresponding weights
+    column_weights = {col: weights2[col] for col in valid_columns}
+    #print(f"Column Weights Mapping (Valid Columns): {column_weights}")  # Debugging: Print column-weights mapping
 
-                # Print the results for this feature and threshold
-                print(f"Feature '{column}' with threshold {threshold}:")
-                print(f"  Normal count above threshold: {len(normal_anomalies)}")
-                print(f"  Anomaly count above threshold: {len(detected_anomalies)}\n")
+    # Loop through each row to calculate weighted Z-scores and determine predictions
+    for index, row in df2.iterrows():
+        total_weighted_z_score = 0  # Sum of weighted Z-scores for this row
 
-    return result
+        for column in valid_columns:
+            if df2.dtypes[column] in ['int64', 'float64']:
+                mean = df2[column].mean()
+                std = df2[column].std()
 
-# Example usage
-thresholds = [1.5, 2.0, 2.5, 3.0]
-#anomaly_results = z_score(df, thresholds)
+                # Avoid division by zero
+                if std == 0:
+                    continue
 
-def performance_metrics(df3):
-    actual= (df3['class'] == 'anomaly').astype(int) # if the class data is an anomaly it will be stored as 1 and if the data
-                                                    # is normal it will be stored as 0
-    predicted = array.array('i')
-    for rows in df3.rows:
-        error = 0
-        for column in df3.columns:
-            if df.dtypes[column] in ['int64', 'float64'] and column != 'class':
-                x_value = df3[column,rows]
-                if z_score(x_value, thresholds) > thresholds[0]:
-                    error += 1
-        if error >= 6:
-            predicted.append(1) # anomaly
+                # Calculate Z-score
+                z_score_2 = (row[column] - mean) / std
+
+                # Apply weight
+                weight = column_weights.get(column, 0)  # Default weight is 0 if not in column_weights
+                weighted_z_score = z_score_2 * weight
+                total_weighted_z_score += weighted_z_score
+
+        # Determine the prediction based on total weighted Z-score
+        anomaly_threshold = threshold  # Adjust this logic as needed
+        if total_weighted_z_score > anomaly_threshold:
+            predictions.append(1)  # The 1 here is indicating anomaly
         else:
-            predicted.append(0) # normal
-    matrix = confusion_matrix(actual,predicted)
+            predictions.append(0)  # The 0 here is indicating normal
+
+    return predictions
+
+thresholds = [1.5, 2.0, 2.5, 3.0]
+
+# 1.5 gave the best recall and accuracy so smaller thresholds were tried till 0.5
+# 0.5 gave the best results in terms of recall and accuracy
+# smaller values has higher recall but lower accuracy and precision
+
+
+# For Accuracy and recall threshold of 1.5 is better
+# For precision a threshold of 3.0 is the better
+# threshold of 0.5 is the best with max accuracy and recall
+
+#predict = z_score(training_df, 0.5, weights)
+testing_predict = z_score(testing_df, 0.5, weights)
+
+def performance_metrics(attack_3, pridect_3):
+    attack_3 = attack_3.apply(lambda x: 1 if x == 'anomaly' else 0)
+    matrix = confusion_matrix(attack_3,pridect_3)
     if matrix.shape == (2,2):
         tn, fp, fn, tp = matrix.ravel()
         accuracy = (tp + tn) / (tp + tn + fp + fn)
@@ -87,11 +128,173 @@ def performance_metrics(df3):
     else:
         print("wrong data set")
 
-#performance_metrics(df)
+#performance_metrics(training_attack, predict)
+
+performance_metrics(testing_attack, testing_predict)
+
+#Task 2 part (I)
+def calculate_mse(empirical_counts, fitted_pdf):
+    """Calculate Mean Squared Error (MSE) between empirical data and fitted PDF."""
+    return np.mean((empirical_counts - fitted_pdf) ** 2)
+
+
+def best_fit_distribution(data, bin_centers, distributions):
+    """Find the best-fitting distribution by calculating MSE for each."""
+    best_mse = float('inf')
+    best_distribution = None
+    best_params = None
+
+    # Calculate empirical counts based on bin centers
+    empirical_counts, _ = np.histogram(data, bins=len(bin_centers), range=(bin_centers.min(), bin_centers.max()),
+                                       density=True)
+
+    for distribution in distributions:
+        try:
+            # Fit the distribution to data
+            params = distribution.fit(data)
+
+            # Calculate the PDF with fitted parameters
+            fitted_pdf = distribution.pdf(bin_centers, *params)
+
+            # Check shapes before calculating MSE
+            if len(empirical_counts) != len(fitted_pdf):
+                print(
+                    f"Shape mismatch: empirical_counts has length {len(empirical_counts)}, fitted_pdf has length {len(fitted_pdf)} for {distribution.name}")
+                continue
+
+            # Calculate MSE
+            mse = calculate_mse(empirical_counts, fitted_pdf)
+
+            # Update best distribution if this one has the lowest MSE
+            if mse < best_mse:
+                best_mse = mse
+                best_distribution = distribution
+                best_params = params
+        except Exception as e:
+            print(f"Error fitting {distribution.name}: {e}")
+            continue
+
+    return best_distribution, best_params, best_mse
+
+
+def plot_conditional_pdfs(df1, unique_values_threshold=10):
+    # Define a list of distributions to test
+    distributions = [
+        stats.alpha, stats.norm, stats.expon, stats.gamma, stats.pareto, stats.beta, stats.lognorm, stats.weibull_min,
+        stats.weibull_max, stats.t, stats.f, stats.chi2, stats.gumbel_r, stats.gumbel_l, stats.dweibull,
+        stats.genextreme, stats.uniform , stats.arcsine, stats.cosine, stats.exponnorm, stats.foldcauchy
+    ]
+
+    # Select only numerical columns, excluding the 'class' column
+    numerical_columns = df1.select_dtypes(include=[np.number]).columns
+    numerical_columns = [col for col in numerical_columns if col != 'class']
+
+    # Define conditions
+    class_conditions = {
+        'Original': df1,
+        'Normal': df1[df1['class'] == 'normal'],
+        'Anomaly': df1[df1['class'] == 'anomaly']
+    }
+
+    # Loop through each numerical column
+    for column in numerical_columns:
+        # Check if the column has enough unique values
+        if df1[column].nunique() < unique_values_threshold:
+            print(f"Skipping '{column}' due to low unique values.")
+            continue
+
+        # Calculate the IQR and determine if we should adjust the x-axis range
+        q1, q3 = np.percentile(df1[column].dropna(), [25, 75])
+        iqr = q3 - q1
+        if df1[column].max() > q3 + 10 * iqr or df1[column].min() < q1 - 10 * iqr:
+            lower_bound, upper_bound = np.percentile(df1[column].dropna(), [0 , 97])
+        else:
+            lower_bound, upper_bound = df1[column].min(), df1[column].max()
+
+        # Set up plot with restricted x-axis range for extreme data
+        plt.figure(figsize=(10, 6))
+        plt.title(f'PDF of {column} with Best Fit (Original, Normal, and Anomaly)')
+
+        # Plot PDFs and find best fit for each condition
+        colors = {'Original': 'blue', 'Normal': 'green', 'Anomaly': 'red'}
+        for condition_name, condition_data in class_conditions.items():
+            data_conditioned = condition_data[column].dropna()
+
+            # Plot the empirical PDF for the condition
+            sns.histplot(data_conditioned, kde=True , stat='density', label=condition_name,
+                         color=colors[condition_name], bins=15, element='step')
+
+            # Calculate best-fitting distribution using MSE
+            bin_edges = np.linspace(lower_bound, upper_bound, 15)
+            bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+
+            best_distribution, best_params, best_mse = best_fit_distribution(data_conditioned, bin_centers,
+                                                                             distributions)
+
+            # Plot the best-fitting PDF as a dotted line
+            if best_distribution:
+                fitted_pdf = best_distribution.pdf(bin_centers, *best_params)
+                plt.plot(bin_centers, fitted_pdf, linestyle='--', color=colors[condition_name],
+                         label=f'Best Fit ({condition_name}): {best_distribution.name} (MSE={best_mse:.5f})')
+
+        # Display plot settings
+        plt.xlim(lower_bound, upper_bound)
+        plt.xlabel(column)
+        plt.ylabel('Density')
+        plt.legend(title="Condition")
+        plt.grid(True)
+        plt.show()
+
+#plot_conditional_pdfs(df) #this is the most correct thing I made so far please try run it
+
+#Task 2 part (II)
+def pmf_plot(df2):
+    for column in df2.columns:
+        # Check if the column is categorical or a low-variance/low-unique numerical column
+        if df2.dtypes[column] == 'object' or (
+                df2.dtypes[column] in ['int64', 'float64'] and
+                (df2[column].var() < 1e-5 or df2[column].nunique() < 10)
+        ):
+            plt.figure(figsize=(10, 5))
+
+            # Calculate and plot PMF using value_counts(normalize=True)
+            pmf = df2[column].value_counts(normalize=True)
+            pmf.plot(kind='bar')
+
+            plt.title(f"PMF of {column}")
+            plt.xlabel(column)
+            plt.ylabel("Probability")
+            plt.grid(True)
+            plt.show()
+
+#pmf_plot(df)
+
+def plot_cond_pmf(df3):
+    for column in df3.columns:
+        if column == 'class':
+            continue # TO avoid checking for class field
+        condition = df3['class'].unique()
+
+        for attack in condition:
+            df_5_conditioned = df3[df3['class'] == attack]
+
+            if df.dtypes[column] == 'object' or (
+                df.dtypes[column] in ['int64', 'float64'] and
+                (df[column].var() < 1e-5 or df[column].nunique() < 10)
+            ):
+                plt.figure(figsize=(10,5))
+                df3[column].value_counts(normalize=True).plot(color='blue', kind='bar', label='Original PMF')
+                df_5_conditioned[column].value_counts(normalize=True).plot(color= 'orange', kind='bar', label= f'Conditional for {attack}')
+                plt.title(f"PMF of {column} (Original and Conditional for {attack})")
+                plt.legend()
+                plt.grid(True)
+                plt.show()
+
+#plot_cond_pmf(df)
 
 # Task 2 part (III)
 # Summarize best-fit distributions for numerical columns
-def document_best_fit_pdf(df91, class_column='class'):
+def document_best_fit_pdf(df41, class_column='class'):
     distributions = [
         stats.alpha, stats.norm, stats.expon, stats.gamma, stats.pareto, stats.beta, stats.lognorm, stats.weibull_min,
         stats.weibull_max, stats.t, stats.f, stats.chi2, stats.gumbel_r, stats.gumbel_l, stats.dweibull,
@@ -99,15 +302,15 @@ def document_best_fit_pdf(df91, class_column='class'):
     ]
     result_summary = {}
 
-    for column in df91.select_dtypes(include=[np.number]).columns:
-        if column == class_column or df91[column].nunique() < 10 or df91[column].var() < 1e-5:
+    for column in df41.select_dtypes(include=[np.number]).columns:
+        if column == class_column or df41[column].nunique() < 10 or df41[column].var() < 1e-5:
             print(f"Skipping '{column}' due to low variance or insufficient unique values.")
             continue
 
         # Filter extreme values (2nd to 98th percentiles)
-        lower_bound = np.percentile(df91[column].dropna(), 2)
-        upper_bound = np.percentile(df91[column].dropna(), 98)
-        filtered_data = df91[(df91[column] >= lower_bound) & (df91[column] <= upper_bound)][column].dropna()
+        lower_bound = np.percentile(df41[column].dropna(), 2)
+        upper_bound = np.percentile(df41[column].dropna(), 98)
+        filtered_data = df41[(df41[column] >= lower_bound) & (df41[column] <= upper_bound)][column].dropna()
 
         # Use the provided best_fit_distribution function to determine the best fit
         try:
@@ -126,29 +329,29 @@ def document_best_fit_pdf(df91, class_column='class'):
     return result_summary
 
 # Summarize PMF data for categorical columns
-def document_pmf_data(df92, class_column='class'):
+def document_pmf_data(df42, class_column='class'):
     pmf_summary = {}
-    for column in df92.select_dtypes(include=['object']).columns:
+    for column in df42.select_dtypes(include=['object']).columns:
         try:
             pmf_summary[column] = {}
             # Overall PMF
-            overall_pmf = df92[column].value_counts(normalize=True).to_dict()
+            overall_pmf = df42[column].value_counts(normalize=True).to_dict()
             pmf_summary[column]['overall'] = overall_pmf
 
             # Class-conditioned PMFs
-            for class_value in df92[class_column].unique():
-                conditioned_pmf = df92[df92[class_column] == class_value][column].value_counts(normalize=True).to_dict()
+            for class_value in df42[class_column].unique():
+                conditioned_pmf = df42[df42[class_column] == class_value][column].value_counts(normalize=True).to_dict()
                 pmf_summary[column][class_value] = conditioned_pmf
         except Exception as e:
             print(f"Error calculating PMF for '{column}': {e}")
     return pmf_summary
 
 # Document results for both numerical and categorical columns
-def document_analysis_results(df93):
+def document_analysis_results(df43):
     # Summarize best-fit distributions for numerical columns
-    numerical_summary = document_best_fit_pdf(df93)
+    numerical_summary = document_best_fit_pdf(df43)
     # Summarize PMF data for categorical columns
-    categorical_summary = document_pmf_data(df93)
+    categorical_summary = document_pmf_data(df43)
     return numerical_summary, categorical_summary
 
 
@@ -175,5 +378,5 @@ def print_summary(numerical_summary, categorical_summary):
             for value, probability in class_pmf.items():
                 print(f"      {value}: {probability:.4f}")
     print("\n")
-ns, cs = document_analysis_results(df)
-print_summary(ns, cs)
+#ns, cs = document_analysis_results(df)
+#print_summary(ns, cs)
