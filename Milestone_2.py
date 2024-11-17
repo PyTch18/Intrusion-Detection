@@ -20,16 +20,16 @@ testing_attack = testing_df['class']
 #Task 1_2
 def attack_correlation(df_full):
     # Encode the 'class' column as numeric (1 for 'anomaly', 0 for 'normal')
-    df_full['class_encoded'] = df_full['class'].apply(lambda x: 1 if x == 'anomaly' else 0)
+    encoded_attack = df_full['class'].apply(lambda x: 1 if x == 'anomaly' else 0)
 
     # Select only numeric columns
     numeric_df_full = df_full.select_dtypes(include=['int64', 'float64']).copy()
 
-    # Calculate correlations of each numeric column with the 'class_encoded' column
-    correlation_with_attack = numeric_df_full.apply(lambda x: x.corr(df_full['class_encoded']))
+    # Filter out columns with constant values or all NaNs
+    numeric_df_full = numeric_df_full.loc[:, numeric_df_full.nunique() > 1]
 
-    # Drop the temporary 'class_encoded' column
-    df_full.drop(columns=['class_encoded'], inplace=True)
+    # Calculate correlations of each numeric column with the encoded 'class' column
+    correlation_with_attack = numeric_df_full.apply(lambda x: x.corr(encoded_attack))
 
     # Convert the result to a dictionary where the column name is the key and correlation is the value
     correlation_dict = correlation_with_attack.to_dict()
@@ -38,7 +38,6 @@ def attack_correlation(df_full):
     correlation_dict = {k: (v if pd.notna(v) else 0) for k, v in correlation_dict.items()}
 
     return correlation_dict
-
 weights = attack_correlation(training_df)
 
 #choose all the dataframe except the class column
@@ -110,7 +109,7 @@ thresholds = [1.5, 2.0, 2.5, 3.0]
 # threshold of 0.5 is the best with max accuracy and recall
 
 #predict = z_score(training_df, 0.5, weights)
-#testing_predict = z_score(testing_df, 0.5, weights)
+testing_predict = z_score(testing_df, 0.5, weights)
 
 def performance_metrics(attack_3, pridect_3):
     attack_3 = attack_3.apply(lambda x: 1 if x == 'anomaly' else 0)
@@ -128,7 +127,7 @@ def performance_metrics(attack_3, pridect_3):
 
 #performance_metrics(training_attack, predict)
 
-#performance_metrics(testing_attack, testing_predict)
+performance_metrics(testing_attack, testing_predict)
 
 '''
 #task 2 part 1 (i)
@@ -642,5 +641,5 @@ def print_summary(numerical_summary, categorical_summary):
             for value, probability in class_pmf.items():
                 print(f"      {value}: {probability:.4f}")
     print("\n")
-ns, cs = document_analysis_results(df)
-print_summary(ns, cs)
+#ns, cs = document_analysis_results(df)
+#print_summary(ns, cs)
