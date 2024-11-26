@@ -114,10 +114,14 @@ thresholds = [1.5, 2.0, 2.5, 3.0]
 #predict = z_score(training_df, 0.5, weights)
 testing_predict = z_score(testing_df, 0.5, weights)
 
-def performance_metrics(attack_3, pridect_3):
+def performance_metrics(attack_3, predict_3):
     attack_3 = attack_3.apply(lambda x: 1 if x == 'anomaly' else 0)
-    matrix = confusion_matrix(attack_3,pridect_3)
+    matrix = confusion_matrix(attack_3, predict_3)
     if matrix.shape == (2,2):
+        """True Negative (tn): Correctly predicted normal points.
+           False Positive (fp): Normal points wrongly predicted as anomalies.
+           False Negative (fn): Anomalies wrongly predicted as normal.
+           True Positive (tp): Correctly predicted anomalies."""
         tn, fp, fn, tp = matrix.ravel()
         accuracy = (tp + tn) / (tp + tn + fp + fn)
         precision = tp / (tp + fp)
@@ -165,7 +169,7 @@ def best_fit_distribution(data, bin_centers, distributions):
             # Calculate MSE
             mse = calculate_mse(empirical_counts, fitted_pdf)
 
-            # Update best distribution if this one has the lowest MSE
+            # Update the best distribution if this one has the lowest MSE
             if mse < best_mse:
                 best_mse = mse
                 best_distribution = distribution
@@ -177,7 +181,7 @@ def best_fit_distribution(data, bin_centers, distributions):
     return best_distribution, best_params, best_mse
 
 
-def plot_conditional_pdfs(df1, unique_values_threshold=10):
+def plot_conditional_pdfs(df3, unique_values_threshold=10):
     # Define a list of distributions to test
     distributions = [
         stats.alpha, stats.norm, stats.expon, stats.gamma, stats.pareto, stats.beta, stats.lognorm, stats.weibull_min,
@@ -186,30 +190,30 @@ def plot_conditional_pdfs(df1, unique_values_threshold=10):
     ]
 
     # Select only numerical columns, excluding the 'class' column
-    numerical_columns = df1.select_dtypes(include=[np.number]).columns
+    numerical_columns = df3.select_dtypes(include=[np.number]).columns
     numerical_columns = [col for col in numerical_columns if col != 'class']
 
     # Define conditions
     class_conditions = {
-        'Original': df1,
-        'Normal': df1[df1['class'] == 'normal'],
-        'Anomaly': df1[df1['class'] == 'anomaly']
+        'Original': df3,
+        'Normal': df3[df3['class'] == 'normal'],
+        'Anomaly': df3[df3['class'] == 'anomaly']
     }
 
     # Loop through each numerical column
     for column in numerical_columns:
         # Check if the column has enough unique values
-        if df1[column].nunique() < unique_values_threshold:
+        if df3[column].nunique() < unique_values_threshold:
             print(f"Skipping '{column}' due to low unique values.")
             continue
 
         # Calculate the IQR and determine if we should adjust the x-axis range
-        q1, q3 = np.percentile(df1[column].dropna(), [25, 75])
+        q1, q3 = np.percentile(df3[column].dropna(), [25, 75])
         iqr = q3 - q1
-        if df1[column].max() > q3 + 10 * iqr or df1[column].min() < q1 - 10 * iqr:
-            lower_bound, upper_bound = np.percentile(df1[column].dropna(), [0 , 97])
+        if df3[column].max() > q3 + 10 * iqr or df3[column].min() < q1 - 10 * iqr:
+            lower_bound, upper_bound = np.percentile(df3[column].dropna(), [0 , 97])
         else:
-            lower_bound, upper_bound = df1[column].min(), df1[column].max()
+            lower_bound, upper_bound = df3[column].min(), df3[column].max()
 
         # Set up plot with restricted x-axis range for extreme data
         plt.figure(figsize=(10, 6))
@@ -248,17 +252,17 @@ def plot_conditional_pdfs(df1, unique_values_threshold=10):
 #plot_conditional_pdfs(df) #this is the most correct thing I made so far please try run it
 
 #Task 2 part (II)
-def pmf_plot(df2):
-    for column in df2.columns:
+def pmf_plot(df4):
+    for column in df4.columns:
         # Check if the column is categorical or a low-variance/low-unique numerical column
-        if df2.dtypes[column] == 'object' or (
-                df2.dtypes[column] in ['int64', 'float64'] and
-                (df2[column].var() < 1e-5 or df2[column].nunique() < 10)
+        if df4.dtypes[column] == 'object' or (
+                df4.dtypes[column] in ['int64', 'float64'] and
+                (df4[column].var() < 1e-5 or df4[column].nunique() < 10)
         ):
             plt.figure(figsize=(10, 5))
 
             # Calculate and plot PMF using value_counts(normalize=True)
-            pmf = df2[column].value_counts(normalize=True)
+            pmf = df4[column].value_counts(normalize=True)
             pmf.plot(kind='bar')
 
             plt.title(f"PMF of {column}")
@@ -269,21 +273,21 @@ def pmf_plot(df2):
 
 #pmf_plot(df)
 
-def plot_cond_pmf(df3):
-    for column in df3.columns:
+def plot_cond_pmf(df5):
+    for column in df5.columns:
         if column == 'class':
             continue # TO avoid checking for class field
-        condition = df3['class'].unique()
+        condition = df5['class'].unique()
 
         for attack in condition:
-            df_5_conditioned = df3[df3['class'] == attack]
+            df_5_conditioned = df5[df5['class'] == attack]
 
             if df.dtypes[column] == 'object' or (
                 df.dtypes[column] in ['int64', 'float64'] and
                 (df[column].var() < 1e-5 or df[column].nunique() < 10)
             ):
                 plt.figure(figsize=(10,5))
-                df3[column].value_counts(normalize=True).plot(color='blue', kind='bar', label='Original PMF')
+                df5[column].value_counts(normalize=True).plot(color='blue', kind='bar', label='Original PMF')
                 df_5_conditioned[column].value_counts(normalize=True).plot(color= 'orange', kind='bar', label= f'Conditional for {attack}')
                 plt.title(f"PMF of {column} (Original and Conditional for {attack})")
                 plt.legend()
@@ -294,7 +298,7 @@ def plot_cond_pmf(df3):
 
 # Task 2 part (III)
 # Summarize best-fit distributions for numerical columns
-def document_best_fit_pdf(df41, class_column='class'):
+def document_best_fit_pdf(df61, class_column='class'):
     distributions = [
         stats.alpha, stats.norm, stats.expon, stats.gamma, stats.pareto, stats.beta, stats.lognorm, stats.weibull_min,
         stats.weibull_max, stats.t, stats.f, stats.chi2, stats.gumbel_r, stats.gumbel_l, stats.dweibull,
@@ -302,15 +306,15 @@ def document_best_fit_pdf(df41, class_column='class'):
     ]
     result_summary = {}
 
-    for column in df41.select_dtypes(include=[np.number]).columns:
-        if column == class_column or df41[column].nunique() < 10 or df41[column].var() < 1e-5:
+    for column in df61.select_dtypes(include=[np.number]).columns:
+        if column == class_column or df61[column].nunique() < 10 or df61[column].var() < 1e-5:
             print(f"Skipping '{column}' due to low variance or insufficient unique values.")
             continue
 
         # Filter extreme values (2nd to 98th percentiles)
-        lower_bound = np.percentile(df41[column].dropna(), 2)
-        upper_bound = np.percentile(df41[column].dropna(), 98)
-        filtered_data = df41[(df41[column] >= lower_bound) & (df41[column] <= upper_bound)][column].dropna()
+        lower_bound = np.percentile(df61[column].dropna(), 2)
+        upper_bound = np.percentile(df61[column].dropna(), 98)
+        filtered_data = df61[(df61[column] >= lower_bound) & (df61[column] <= upper_bound)][column].dropna()
 
         # Use the provided best_fit_distribution function to determine the best fit
         try:
@@ -329,44 +333,45 @@ def document_best_fit_pdf(df41, class_column='class'):
     return result_summary
 
 # Summarize PMF data for categorical columns
-def document_pmf_data(df42, class_column='class'):
+def document_pmf_data(df62, class_column='class'):
     pmf_summary = {}
-    for column in df42.select_dtypes(include=['object']).columns:
+    for column in df62.select_dtypes(include=['object']).columns:
         try:
             pmf_summary[column] = {}
             # Overall PMF
-            overall_pmf = df42[column].value_counts(normalize=True).to_dict()
+            overall_pmf = df62[column].value_counts(normalize=True).to_dict()
             pmf_summary[column]['overall'] = overall_pmf
 
             # Class-conditioned PMFs
-            for class_value in df42[class_column].unique():
-                conditioned_pmf = df42[df42[class_column] == class_value][column].value_counts(normalize=True).to_dict()
+            for class_value in df62[class_column].unique():
+                conditioned_pmf = df62[df62[class_column] == class_value][column].value_counts(normalize=True).to_dict()
                 pmf_summary[column][class_value] = conditioned_pmf
         except Exception as e:
             print(f"Error calculating PMF for '{column}': {e}")
     return pmf_summary
 
 # Document results for both numerical and categorical columns
-def document_analysis_results(df43):
+def document_analysis_results(df63):
     # Summarize best-fit distributions for numerical columns
-    numerical_summary = document_best_fit_pdf(df43)
+    numerical_summary = document_best_fit_pdf(df63)
     # Summarize PMF data for categorical columns
-    categorical_summary = document_pmf_data(df43)
+    categorical_summary = document_pmf_data(df63)
     return numerical_summary, categorical_summary
 
 
 def print_summary(numerical_summary, categorical_summary):
+    """Print the summary of PDF and PMF"""
     print("\nPDF Summary (Numerical Columns):")
     for column, info in numerical_summary.items():
         print(f"  - Column: {column}")
-        print(f"    Best-Fit Distribution: {info['best_fit_distribution']}")
-        print(f"    Parameters: {info['params']}")
+        print(f"    Best-Fit Distribution: {info['best_fit_distribution']}") # Shape
+        print(f"    Parameters: {info['params']}")  # First one is location parameter and the second one is Scale parameter
         print(f"    Mean Squared Error (MSE): {info['mse']:.5f}")
         print("\n")
 
     print("PMF Summary (Categorical Columns):")
     for column, pmf in categorical_summary.items():
-        print(f"\n  - Column: {column}")
+        print(f"\n  - Column: {column}") #Probabilities of each unique value in the column across the entire dataset
         print("    Overall PMF:")
         for value, probability in pmf['overall'].items():
             print(f"      {value}: {probability:.4f}")
@@ -374,9 +379,50 @@ def print_summary(numerical_summary, categorical_summary):
         for class_value, class_pmf in pmf.items():
             if class_value == 'overall':
                 continue
-            print(f"    PMF Conditioned on {class_value}:")
+            print(f"    PMF Conditioned on {class_value}:") # Probabilities of each unique value given a specific class or condition.
             for value, probability in class_pmf.items():
                 print(f"      {value}: {probability:.4f}")
     print("\n")
-#ns, cs = document_analysis_results(df)
-#print_summary(ns, cs)
+ns, cs = document_analysis_results(df)
+print_summary(ns, cs)
+
+"""Normal Distribution (norm)
+
+	•	Parameters: (loc, scale)
+	•	loc: Mean of the distribution.
+	•	scale: Standard deviation.
+	
+	Gamma Distribution (gamma)
+
+	•	Parameters: (shape, loc, scale)
+	•	shape (a): Determines the skewness and tail behavior.
+	•	loc: Location parameter (often 0).
+	•	scale: Controls the spread.
+	
+	Exponential Distribution (expon)
+
+	•	Parameters: (loc, scale)
+	•	loc: Starting point of the distribution (minimum value).
+	•	scale: 1/λ, where λ is the rate of decay.
+	
+	Lognormal Distribution (lognorm)
+
+	•	Parameters: (shape, loc, scale)
+	•	shape (s): Determines skewness.
+	•	loc: Location parameter (shift on the x-axis).
+	•	scale: Exp(mean of the underlying normal distribution).
+	
+	Weibull Distribution (weibull_min or weibull_max)
+
+	•	Parameters: (shape, loc, scale)
+	•	shape (c): Determines the behavior of the tail.
+	•	loc: Location parameter.
+	•	scale: Characteristic life or spread.
+	
+	Beta Distribution (beta)
+
+	•	Parameters: (shape1, shape2, loc, scale)
+	•	shape1 (α): Controls the left tail.
+	•	shape2 (β): Controls the right tail.
+	•	loc: Lower bound of the distribution.
+	•	scale: Range of the distribution (difference between upper and lower bounds)."""
