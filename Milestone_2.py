@@ -365,7 +365,8 @@ def print_summary(numerical_summary, categorical_summary):
     for column, info in numerical_summary.items():
         print(f"  - Column: {column}")
         print(f"    Best-Fit Distribution: {info['best_fit_distribution']}") # Shape
-        print(f"    Parameters: {info['params']}")  # First one is location parameter and the second one is Scale parameter
+        print(f"    Parameters: {info['params']}")  # First one is location parameter (Represents the central tendency or “location” of the distribution on the x-axis)
+        #                                             and the second one is Scale parameter (Determines the spread or dispersion of the distribution)
         print(f"    Mean Squared Error (MSE): {info['mse']:.5f}")
         print("\n")
 
