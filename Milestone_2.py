@@ -123,9 +123,9 @@ def performance_metrics(attack_3, predict_3):
            False Negative (fn): Anomalies wrongly predicted as normal.
            True Positive (tp): Correctly predicted anomalies."""
         tn, fp, fn, tp = matrix.ravel()
-        accuracy = (tp + tn) / (tp + tn + fp + fn)
-        precision = tp / (tp + fp)
-        recall = tp / (tp + fn)
+        accuracy = (tp + tn) / (tp + tn + fp + fn) # Accuracy is the ratio of correctly predicted observations to the total observations.
+        precision = tp / (tp + fp) # Precision is the ratio of correctly predicted positive observations (anomalies) to the total predicted positive observations.
+        recall = tp / (tp + fn) # Recall is the ratio of correctly predicted positive observations (anomalies) to all actual positive observations.
         print(f"Accuracy: {accuracy}")
         print(f"Precision: {precision}")
         print(f"Recall: {recall}")
@@ -158,7 +158,7 @@ def best_fit_distribution(data, bin_centers, distributions):
             params = distribution.fit(data)
 
             # Calculate the PDF with fitted parameters
-            fitted_pdf = distribution.pdf(bin_centers, *params)
+            fitted_pdf = distribution.pdf(bin_centers, *params) # *params bta2sem nafsaha 3la 7asab kol distribution
 
             # Check shapes before calculating MSE
             if len(empirical_counts) != len(fitted_pdf):
@@ -249,7 +249,7 @@ def plot_conditional_pdfs(df3, unique_values_threshold=10):
         plt.grid(True)
         plt.show()
 
-#plot_conditional_pdfs(df) #this is the most correct thing I made so far please try run it
+plot_conditional_pdfs(df) #this is the most correct thing I made so far please try run it
 
 #Task 2 part (II)
 def pmf_plot(df4):
@@ -257,8 +257,7 @@ def pmf_plot(df4):
         # Check if the column is categorical or a low-variance/low-unique numerical column
         if df4.dtypes[column] == 'object' or (
                 df4.dtypes[column] in ['int64', 'float64'] and
-                (df4[column].var() < 1e-5 or df4[column].nunique() < 10)
-        ):
+                df4[column].nunique() < 10):
             plt.figure(figsize=(10, 5))
 
             # Calculate and plot PMF using value_counts(normalize=True)
@@ -284,8 +283,7 @@ def plot_cond_pmf(df5):
 
             if df.dtypes[column] == 'object' or (
                 df.dtypes[column] in ['int64', 'float64'] and
-                (df[column].var() < 1e-5 or df[column].nunique() < 10)
-            ):
+                df[column].nunique() < 10):
                 plt.figure(figsize=(10,5))
                 df5[column].value_counts(normalize=True).plot(color='blue', kind='bar', label='Original PMF')
                 df_5_conditioned[column].value_counts(normalize=True).plot(color= 'orange', kind='bar', label= f'Conditional for {attack}')
@@ -312,8 +310,8 @@ def document_best_fit_pdf(df61, class_column='class'):
             continue
 
         # Filter extreme values (2nd to 98th percentiles)
-        lower_bound = np.percentile(df61[column].dropna(), 2)
-        upper_bound = np.percentile(df61[column].dropna(), 98)
+        lower_bound = np.percentile(df61[column].dropna(), 0)
+        upper_bound = np.percentile(df61[column].dropna(), 97)
         filtered_data = df61[(df61[column] >= lower_bound) & (df61[column] <= upper_bound)][column].dropna()
 
         # Use the provided best_fit_distribution function to determine the best fit
