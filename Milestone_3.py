@@ -43,7 +43,7 @@ sorted_weights = sorted(weights.items(), key=lambda x: x[1], reverse=True)
 
 def filter_independent_items(pre_filtered_weights):
     independent_items = {}
-    for i, (current_key, current_weight) in enumerate(pre_filtered_weights):
+    for i, (current_key, current_weight) in enumerate(pre_filtered_weights): # Enumerating the dictionary to be processed 
         is_independent = True
         for prev_key in independent_items.keys():
             # Perform a statistical dependency check
@@ -57,7 +57,29 @@ def filter_independent_items(pre_filtered_weights):
         if is_independent:
             independent_items[current_key] = current_weight
 
-    # code for adding the categorical data to the independent items
+    # Adding the categorical data to the independent items
+    categorical_columns = training_df.select_dtypes(include=['object']).columns
+    for col in categorical_columns:
+        if col != 'class':  # Exclude the 'class' column
+            # Perform one-hot encoding for the categorical column
+            one_hot_encoded = pd.get_dummies(training_df[col], prefix=col, drop_first=True)
+            is_independent = True
+            for prev_key in independent_items.keys():
+                # Check independence against already chosen independent items
+                column_data_x = training_df[prev_key]
+                for encoded_col in one_hot_encoded.columns:
+                    column_data_y = one_hot_encoded[encoded_col]
+                    _, p_value = stats.pearsonr(column_data_x, column_data_y)
+                    if p_value < 0.05:  # Assuming a significance level of 0.05
+                        is_independent = False
+                        break
+                if not is_independent:
+                    break
+            if is_independent:
+                independent_items[col] = 0  # Assign 0 as a placeholder weight
+
+                # *NEEDS WORK STILL NOT FUNCTIONING RIGHT*
+    
     return independent_items
 
 independent_columns = filter_independent_items(sorted_weights)
