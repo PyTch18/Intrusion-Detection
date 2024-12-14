@@ -309,7 +309,7 @@ def correlation_heatmap(df_9):
     plt.grid(True)
     plt.show()
 
-#correlation_heatmap(df)
+correlation_heatmap(df)
 
 #part 10
 def fields_dependent_on_attack(df_10):
