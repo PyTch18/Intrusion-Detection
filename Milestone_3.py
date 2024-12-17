@@ -34,9 +34,11 @@ def document_analysis_results_ms3(dict_1):
 
 def conditioned_data(df_1):
     condition = df_1['class'].unique()
+    df_1_no_class = df_1.copy()
+    df_1_no_class = df_1_no_class.drop('class', axis=1)
     anomaly_conditioned_data = {}
     normal_conditioned_data = {}
-    for column in df_1:
+    for column in df_1_no_class.columns:
         for value in condition:
             if value == 'anomaly':
                 #Collecting the anomaly conditioned values together
@@ -52,6 +54,8 @@ anomaly_conditioned, normal_conditioned= conditioned_data(training_df)
 numerical_part_best_fit_anomaly, categorical_part_best_fit_anomaly = document_analysis_results_ms3(anomaly_conditioned)
 numerical_part_best_fit_normal, categorical_part_best_fit_normal = document_analysis_results_ms3(normal_conditioned)
 numerical_part_best_fit_nocond, categorical_part_best_fit_nocond = document_analysis_results_ms3(training_df_no_class)
+
+
 '''
 # Extracting best fits for each column as a dictionary (anomaly conditioned)
 numerical_best_fit_anomaly = {
@@ -88,7 +92,7 @@ categorical_best_fit_nocond = {
 '''
 
 
-def calculate_pdf_or_pmf(values, best_fit_params, is_categorical=False):
+def calculate_pdf_or_pmf(values, best_fit_params, is_categorical):
     """
     Calculate the PDF (numerical) or PMF (categorical) values based on the best-fit parameters.
 
@@ -121,53 +125,80 @@ def calculate_pdf_or_pmf(values, best_fit_params, is_categorical=False):
 
 
 def naiive_bayes(df_res):
+    """
+    Perform Naive Bayes prediction for anomaly detection.
 
-    # Separate numerical and categorical columns
+    Parameters:
+    - df_res: DataFrame containing the input data (excluding the class column).
+
+    Returns:
+    - List of predictions: 1 for 'anomaly', 0 for 'normal'.
+    """
+
+    # Function to safely calculate PDF/PMF, skipping invalid columns
+    def safe_calculate(col, fit_params, is_categorical=False):
+        
+        try:
+            if fit_params and 'distribution' in fit_params and fit_params['distribution']:
+                return calculate_pdf_or_pmf(df_res[col], fit_params, is_categorical)
+            elif is_categorical and isinstance(fit_params, dict):
+                return calculate_pdf_or_pmf(df_res[col], fit_params, is_categorical=True)
+            else:
+                # If parameters are invalid, skip by returning 1
+                return np.ones(len(df_res[col]))
+        except Exception as e:
+            # Catch any unexpected errors and return 1 to avoid breaking the product
+            print(f"Skipping column '{col}' due to error: {e}")
+            return np.ones(len(df_res[col]))
+
+    # --- Compute numerator conditioned on 'Anomaly' ---
     numerical_cols = list(numerical_part_best_fit_anomaly.keys())
     categorical_cols = list(categorical_part_best_fit_anomaly.keys())
 
-    # Compute numerator (conditioned on 'Anomaly')
     num_numerator_anomaly = np.prod(
-        [calculate_pdf_or_pmf(df_res[col], numerical_part_best_fit_anomaly[col]) for col in numerical_cols], axis=0
+        [safe_calculate(col, numerical_part_best_fit_anomaly.get(col)) for col in numerical_cols], axis=0
     )
     cat_numerator_anomaly = np.prod(
-        [calculate_pdf_or_pmf(df_res[col], categorical_part_best_fit_anomaly[col], is_categorical=True) for col in categorical_cols], axis=0
+        [safe_calculate(col, categorical_part_best_fit_anomaly.get(col), is_categorical=True) for col in
+         categorical_cols], axis=0
     )
     numerator_anomaly = num_numerator_anomaly * cat_numerator_anomaly
 
+    # --- Compute numerator conditioned on 'Normal' ---
     numerical_cols = list(numerical_part_best_fit_normal.keys())
     categorical_cols = list(categorical_part_best_fit_normal.keys())
 
-    # Compute numerator (conditioned on 'Anomaly')
     num_numerator_normal = np.prod(
-        [calculate_pdf_or_pmf(df_res[col], numerical_part_best_fit_normal[col]) for col in numerical_cols], axis=0
+        [safe_calculate(col, numerical_part_best_fit_normal.get(col)) for col in numerical_cols], axis=0
     )
     cat_numerator_normal = np.prod(
-        [calculate_pdf_or_pmf(df_res[col], categorical_part_best_fit_normal[col], is_categorical=True) for col in categorical_cols], axis=0
+        [safe_calculate(col, categorical_part_best_fit_normal.get(col), is_categorical=True) for col in
+         categorical_cols], axis=0
     )
     numerator_normal = num_numerator_normal * cat_numerator_normal
 
+    # --- Compute denominator without conditioning ---
     numerical_cols = list(numerical_part_best_fit_nocond.keys())
     categorical_cols = list(categorical_part_best_fit_nocond.keys())
 
-    # Compute denominator (no conditioning)
     num_denominator = np.prod(
-        [calculate_pdf_or_pmf(df_res[col], numerical_part_best_fit_nocond[col]) for col in numerical_cols], axis=0
+        [safe_calculate(col, numerical_part_best_fit_nocond.get(col)) for col in numerical_cols], axis=0
     )
     cat_denominator = np.prod(
-        [calculate_pdf_or_pmf(df_res[col], categorical_part_best_fit_nocond[col], is_categorical=True) for col in categorical_cols], axis=0
+        [safe_calculate(col, categorical_part_best_fit_nocond.get(col), is_categorical=True) for col in
+         categorical_cols], axis=0
     )
     denominator = num_denominator * cat_denominator
 
+    # --- Calculate posterior probabilities ---
     pr_normal_given_row = numerator_normal / denominator
     pr_anomaly_given_row = numerator_anomaly / denominator
+
+    # --- Generate predictions ---
     predicts = np.where(pr_anomaly_given_row > pr_normal_given_row, 'anomaly', 'normal')
-    predictions_final = []
-    for i in predicts:
-        if i == 'anomaly':
-            predictions_final.append(1)
-        else:
-            predictions_final.append(0)
+
+    # Convert predictions to 0 and 1
+    predictions_final = [1 if i == 'anomaly' else 0 for i in predicts]
 
     return predictions_final
 
