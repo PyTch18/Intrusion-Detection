@@ -1,12 +1,7 @@
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from matplotlib import pyplot as plt
-from scipy import stats
-from sklearn.metrics import confusion_matrix
 import scipy.stats as stats
-from Milestone_2 import document_analysis_results, document_best_fit_pdf, document_pmf_data, performance_metrics
-from Task_1 import categorical
+from Milestone_2 import document_best_fit_pdf, document_pmf_data, performance_metrics
 
 #import the dataframe
 df = pd.read_csv("Train_data.csv")
@@ -55,43 +50,6 @@ numerical_part_best_fit_anomaly, categorical_part_best_fit_anomaly = document_an
 numerical_part_best_fit_normal, categorical_part_best_fit_normal = document_analysis_results_ms3(normal_conditioned)
 numerical_part_best_fit_nocond, categorical_part_best_fit_nocond = document_analysis_results_ms3(training_df_no_class)
 
-
-'''
-# Extracting best fits for each column as a dictionary (anomaly conditioned)
-numerical_best_fit_anomaly = {
-    col: numerical_part_best_fit_anomaly[col]['best_fit_distribution']
-    for col in numerical_part_best_fit_anomaly if 'best_fit_distribution' in numerical_part_best_fit_anomaly[col]
-}
-
-categorical_best_fit_anomaly = {
-    col: categorical_part_best_fit_anomaly[col]['best_fit_distribution']
-    for col in categorical_part_best_fit_anomaly if 'best_fit_distribution' in categorical_part_best_fit_anomaly[col]
-}
-
-# Corrected dictionaries for normal-conditioned values
-numerical_best_fit_normal = {
-    col: numerical_part_best_fit_normal[col]['best_fit_distribution']
-    for col in numerical_part_best_fit_normal if 'best_fit_distribution' in numerical_part_best_fit_normal[col]
-}
-
-categorical_best_fit_normal = {
-    col: categorical_part_best_fit_normal[col]['best_fit_distribution']
-    for col in categorical_part_best_fit_normal if 'best_fit_distribution' in categorical_part_best_fit_normal[col]
-}
-
-# Extracting best fits for non-conditioned data
-numerical_best_fit_nocond = {
-    col: numerical_part_best_fit_nocond[col]['best_fit_distribution']
-    for col in numerical_part_best_fit_nocond if 'best_fit_distribution' in numerical_part_best_fit_nocond[col]
-}
-
-categorical_best_fit_nocond = {
-    col: categorical_part_best_fit_nocond[col]['best_fit_distribution']
-    for col in categorical_part_best_fit_nocond if 'best_fit_distribution' in categorical_part_best_fit_nocond[col]
-}
-'''
-
-
 def calculate_pdf_or_pmf(values, best_fit_params, is_categorical):
     """
     Calculate the PDF (numerical) or PMF (categorical) values based on the best-fit parameters.
@@ -103,8 +61,19 @@ def calculate_pdf_or_pmf(values, best_fit_params, is_categorical):
     - is_categorical: Boolean flag indicating whether the data is categorical.
     """
     if is_categorical:
+        # Extract the nested dictionary if needed
+        probabilities = best_fit_params.get('overall', best_fit_params)
+
         # For categorical data, map the probabilities
-        return values.map(lambda x: best_fit_params.get(x, 1e-6))  # Small probability for unseen categories
+        print("Mapping Categorical Values:")
+        print("Values:", values.head())
+        print("Best Fit Params:", probabilities)
+
+        # Map the values to probabilities with a fallback for unseen categories
+        mapped_probs = values.map(lambda x: probabilities.get(x, 1e-6))
+
+        print("Mapped Probabilities:", mapped_probs.head())
+        return mapped_probs
     else:
         # For numerical data, extract the distribution and parameters
         try:
@@ -125,6 +94,7 @@ def calculate_pdf_or_pmf(values, best_fit_params, is_categorical):
 
 
 def naiive_bayes(df_res):
+    print("\nCalculating Naive Bayes predictions...\n")
     """
     Perform Naive Bayes prediction for anomaly detection.
 
@@ -195,19 +165,18 @@ def naiive_bayes(df_res):
     pr_anomaly_given_row = numerator_anomaly / denominator
 
     # --- Generate predictions ---
-    predicts = np.where(pr_anomaly_given_row > pr_normal_given_row, 'anomaly', 'normal')
+    predicts = np.where(pr_anomaly_given_row >= pr_normal_given_row, 'anomaly', 'normal')
 
     # Convert predictions to 0 and 1
     predictions_final = [1 if i == 'anomaly' else 0 for i in predicts]
 
     return predictions_final
 
-training_predict = naiive_bayes(training_df_no_class)
-#predictions = naiive_bayes(testing_df_no_class)
+#training_predict = pd.Series(naiive_bayes(training_df_no_class))
+predictions = pd.Series(naiive_bayes(testing_df_no_class))
 
+#performance_metrics(training_attack, training_predict)
 
-performance_metrics(training_attack, training_predict)
-
-#performance_metrics(testing_attack, predictions)
+performance_metrics(testing_attack, predictions)
 
 
