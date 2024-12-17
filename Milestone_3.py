@@ -6,6 +6,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.preprocessing import OneHotEncoder
 from Milestone_2 import document_best_fit_pdf, document_pmf_data, performance_metrics
+import warnings
+
+# Removing some warnings appearing due to the large dataset
+# No effects on the output
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 #import the dataframe
 df = pd.read_csv("Train_data.csv")
