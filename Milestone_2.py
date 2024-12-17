@@ -6,6 +6,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 import scipy.stats as stats
 from sklearn.metrics import confusion_matrix
+from collections import defaultdict
 
 #import the dataframe
 df = pd.read_csv("Train_data.csv")
@@ -425,3 +426,115 @@ print_summary(ns, cs)
 	•	shape2 (β): Controls the right tail.
 	•	loc: Lower bound of the distribution.
 	•	scale: Range of the distribution (difference between upper and lower bounds)."""
+
+# Milestone 3
+# Task 1
+training_df = df.iloc[:int(df.shape[0] * 0.7), :]  # Include all columns
+testing_df = df.iloc[int(df.shape[0] * 0.7):, :]
+
+# Function to calculate class priors
+def calculate_class_priors(df, class_column='class'):
+    # Check if the 'class' column exists
+    if class_column not in df.columns:
+        raise KeyError(f"'{class_column}' column not found in the DataFrame.")
+    # Calculate priors as proportions of each class
+    priors = df[class_column].value_counts(normalize=True).to_dict()
+    return priors
+
+# Function to fit PDFs and PMFs
+def fit_pdfs_and_pmfs(df, class_column='class'):
+    numerical_columns = df.select_dtypes(include=[np.number]).columns
+    categorical_columns = df.select_dtypes(include=['object']).columns
+    categorical_columns = [col for col in categorical_columns if col != class_column]
+
+    pdf_params = defaultdict(dict)  # To store best-fit PDF parameters for each class
+    pmf_data = defaultdict(dict)   # To store PMF data for each class
+
+    # Fit PDFs for numerical columns
+    for col in numerical_columns:
+        for cls in df[class_column].unique():
+            class_data = df[df[class_column] == cls][col].dropna()
+            if len(class_data) > 0:
+                bin_edges = np.linspace(class_data.min(), class_data.max(), 15)
+                bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+                best_fit, params, mse = best_fit_distribution(class_data, bin_centers, distributions=[
+                    stats.norm, stats.expon, stats.gamma, stats.uniform
+                ])
+                if best_fit:
+                    pdf_params[cls][col] = {'distribution': best_fit, 'params': params}
+
+    # Fit PMFs for categorical columns
+    for col in categorical_columns:
+        for cls in df[class_column].unique():
+            class_data = df[df[class_column] == cls][col].value_counts(normalize=True).to_dict()
+            pmf_data[cls][col] = class_data
+
+    return pdf_params, pmf_data
+
+# Function to calculate probabilities for each row
+def calculate_row_probabilities(row, pdf_params, pmf_data, priors, numerical_columns, categorical_columns):
+    probabilities = {}
+
+    for cls in priors:  # For each class (anomaly and no anomaly)
+        prob = np.log(priors[cls])  # Start with the prior probability (log scale for numerical stability)
+
+        # Numerical columns (use PDFs)
+        for col in numerical_columns:
+            if col in pdf_params[cls]:
+                dist = pdf_params[cls][col]['distribution']
+                params = pdf_params[cls][col]['params']
+                try:
+                    prob += np.log(dist.pdf(row[col], *params))  # Add log(P(feature|class))
+                except Exception as e:
+                    prob += 0  # Handle cases where PDF calculation fails (e.g., out of bounds)
+
+        # Categorical columns (use PMFs)
+        for col in categorical_columns:
+            if col in pmf_data[cls] and row[col] in pmf_data[cls][col]:
+                prob += np.log(pmf_data[cls][col][row[col]])  # Add log(P(feature|class))
+            else:
+                prob += np.log(1e-10)  # Assign a small probability for unseen values
+
+        probabilities[cls] = prob
+
+    return probabilities
+
+# Function to make predictions
+def naive_bayes_predict(test_df, pdf_params, pmf_data, priors, class_column='class'):
+    predictions = []
+    numerical_columns = test_df.select_dtypes(include=[np.number]).columns
+    categorical_columns = test_df.select_dtypes(include=['object']).columns
+    categorical_columns = [col for col in categorical_columns if col != class_column]
+
+    for _, row in test_df.iterrows():
+        probabilities = calculate_row_probabilities(row, pdf_params, pmf_data, priors, numerical_columns, categorical_columns)
+        predictions.append(max(probabilities, key=probabilities.get))  # Choose class with highest probability
+
+    return predictions
+
+# Function to evaluate performance
+def evaluate_predictions(actual, predicted):
+    # Convert classes to binary (1 for anomaly, 0 for normal)
+    actual = actual.apply(lambda x: 1 if x == 'anomaly' else 0)
+    predicted = [1 if x == 'anomaly' else 0 for x in predicted]
+    matrix = confusion_matrix(actual, predicted)
+    tn, fp, fn, tp = matrix.ravel()
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+    print(f"Accuracy: {accuracy}")
+    print(f"Precision: {precision}")
+    print(f"Recall: {recall}")
+
+# Execute the workflow
+priors = calculate_class_priors(training_df)
+print(f"Class Priors: {priors}")
+
+# Fit PDFs and PMFs for training data
+pdf_params, pmf_data = fit_pdfs_and_pmfs(training_df)
+
+# Make predictions on the test set
+predictions = naive_bayes_predict(testing_df, pdf_params, pmf_data, priors)
+
+# Evaluate predictions
+evaluate_predictions(testing_df['class'], predictions)
