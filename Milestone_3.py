@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
+from sklearn.preprocessing import OneHotEncoder
 from Milestone_2 import document_best_fit_pdf, document_pmf_data, performance_metrics
 
 #import the dataframe
@@ -15,6 +19,7 @@ selected_df = df.iloc[:,0:41] #Selecting the columns without the class column
 training_df_no_class = selected_df.iloc[:int(df.shape[0]*0.7),:]
 testing_df_no_class = selected_df.iloc[int(df.shape[0]*0.7):, :]
 
+#Task 1
 def document_analysis_results_ms3(dict_1):
 
     # Transform dictionaries into DataFrames
@@ -64,15 +69,9 @@ def calculate_pdf_or_pmf(values, best_fit_params, is_categorical):
         # Extract the nested dictionary if needed
         probabilities = best_fit_params.get('overall', best_fit_params)
 
-        # For categorical data, map the probabilities
-        print("Mapping Categorical Values:")
-        print("Values:", values.head())
-        print("Best Fit Params:", probabilities)
-
         # Map the values to probabilities with a fallback for unseen categories
         mapped_probs = values.map(lambda x: probabilities.get(x, 1e-6))
 
-        print("Mapped Probabilities:", mapped_probs.head())
         return mapped_probs
     else:
         # For numerical data, extract the distribution and parameters
@@ -178,5 +177,80 @@ predictions = pd.Series(naiive_bayes(testing_df_no_class))
 #performance_metrics(training_attack, training_predict)
 
 performance_metrics(testing_attack, predictions)
+print("\n")
+
+#Task 2
+def encode_categorical_features(train_df_task_2, test_df_task_2):
+    """
+    Perform one-hot encoding for categorical features in train and test datasets using the same encoder.
+    """
+    # Select categorical columns
+    categorical_columns = train_df_task_2.select_dtypes(include=['object']).columns
+    categorical_columns = [col for col in categorical_columns if col != 'class']
+
+    print("Encoding the following categorical columns:")
+    for col in categorical_columns:
+        print(f"- {col}")
+
+    # One-hot encoding
+    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+    encoded_train_data = encoder.fit_transform(train_df_task_2[categorical_columns])
+    encoded_test_data = encoder.transform(test_df_task_2[categorical_columns])
+
+    # Get encoded column names
+    encoded_columns = encoder.get_feature_names_out(categorical_columns)
+
+    # Convert encoded data to DataFrames
+    encoded_train_df = pd.DataFrame(encoded_train_data, columns=encoded_columns, index=train_df_task_2.index)
+    encoded_test_df = pd.DataFrame(encoded_test_data, columns=encoded_columns, index=test_df_task_2.index)
+
+    # Drop original categorical columns and concatenate encoded ones
+    train_df_task_2 = train_df_task_2.drop(columns=categorical_columns).join(encoded_train_df)
+    test_df_task_2 = test_df_task_2.drop(columns=categorical_columns).join(encoded_test_df)
+
+    return train_df_task_2, test_df_task_2
+
+
+def train_and_evaluate_models(train_df, test_df):
+    """
+    Train and evaluate Gaussian, Multinomial, and Bernoulli Naïve Bayes models.
+    """
+    # Separate features and labels
+    X_train = train_df.drop(columns=['class'])
+    y_train = train_df['class']
+    X_test = test_df.drop(columns=['class'])
+    y_test = test_df['class']
+
+    # Initialize models
+    models = {
+        'GaussianNB': GaussianNB(),
+        'MultinomialNB': MultinomialNB(),
+        'BernoulliNB': BernoulliNB()
+    }
+
+    # Train and evaluate each model
+    for model_name, model in models.items():
+        print(f"\nTraining {model_name}...")
+        model.fit(X_train, y_train)
+        predictions_task_2 = model.predict(X_test)
+
+        # Calculate evaluation metrics
+        accuracy = accuracy_score(y_test, predictions_task_2)
+        precision = precision_score(y_test, predictions_task_2, pos_label='anomaly', zero_division=1)
+        recall = recall_score(y_test, predictions_task_2, pos_label='anomaly', zero_division=1)
+
+        print(f"Accuracy: {accuracy:.4f}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall: {recall:.4f}")
+
+
+# Split dataset
+train_df, test_df = train_test_split(df, test_size=0.3, random_state=42)
+
+# One-hot encode categorical features
+train_df, test_df = encode_categorical_features(train_df, test_df)
+
+# Train and evaluate models
+train_and_evaluate_models(train_df, test_df)
 
 
