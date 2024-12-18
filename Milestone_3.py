@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from Milestone_2 import document_best_fit_pdf, document_pmf_data, performance_metrics
 import warnings
 
@@ -89,9 +89,14 @@ def calculate_pdf_or_pmf(values, best_fit_params, is_categorical):
 
             # Dynamically fetch the distribution object from scipy.stats
             distribution = getattr(stats, distribution_name)
-
+            if isinstance(params, tuple):
+                params = list(params)  # Convert tuple to list
             # Calculate PDF values with the extracted parameters
-            return distribution.pdf(values, **params)
+
+            log_pdf = np.log(distribution.pdf(values, *params) + 1e-10)  # To avoid the nan and inf problems
+
+            return log_pdf  # Unpack params as positional arguments
+
         except Exception as e:
             print(f"Error calculating PDF: {e}")
             return None
@@ -109,19 +114,17 @@ def naiive_bayes(df_res):
     - List of predictions: 1 for 'anomaly', 0 for 'normal'.
     """
 
-    # Function to safely calculate PDF/PMF, skipping invalid columns
     def safe_calculate(col, fit_params, is_categorical=False):
-        
         try:
-            if fit_params and 'distribution' in fit_params and fit_params['distribution']:
+            if fit_params and 'best_fit_distribution' in fit_params and fit_params['best_fit_distribution']:
                 return calculate_pdf_or_pmf(df_res[col], fit_params, is_categorical)
             elif is_categorical and isinstance(fit_params, dict):
                 return calculate_pdf_or_pmf(df_res[col], fit_params, is_categorical=True)
             else:
-                # If parameters are invalid, skip by returning 1
+                # If parameters are invalid, return 1 to skip this column
                 return np.ones(len(df_res[col]))
         except Exception as e:
-            # Catch any unexpected errors and return 1 to avoid breaking the product
+            # Log any unexpected errors and return 1
             print(f"Skipping column '{col}' due to error: {e}")
             return np.ones(len(df_res[col]))
 
@@ -168,20 +171,37 @@ def naiive_bayes(df_res):
     pr_normal_given_row = numerator_normal / denominator
     pr_anomaly_given_row = numerator_anomaly / denominator
 
-    # --- Generate predictions ---
-    predicts = np.where(pr_anomaly_given_row >= pr_normal_given_row, 'anomaly', 'normal')
+    # Handle potential issues with invalid probabilities
+    pr_normal_given_row = np.nan_to_num(pr_normal_given_row, nan=1e-10, posinf=1e10, neginf=1e-10)
+    pr_anomaly_given_row = np.nan_to_num(pr_anomaly_given_row, nan=1e-10, posinf=1e10, neginf=1e-10)
 
+    print("\nProbabilities")
+    print(pr_normal_given_row)
+    print("")
+    print(pr_anomaly_given_row)
+    print("\n")
+    # --- Generate predictions ---
+
+    predicts = np.where(pr_anomaly_given_row>=pr_normal_given_row, 'anomaly', 'normal')
     # Convert predictions to 0 and 1
     predictions_final = [1 if i == 'anomaly' else 0 for i in predicts]
 
+    print(predictions_final)
+
     return predictions_final
+
 
 #training_predict = pd.Series(naiive_bayes(training_df_no_class))
 predictions = pd.Series(naiive_bayes(testing_df_no_class))
+#New_testing = pd.read_csv('Test_data.csv')
+#New_testing_attack = New_testing['class']
+#New_testing_no_attack = New_testing.drop(columns=['class'])
+#predictions_new = pd.Series(naiive_bayes(New_testing))
 
 #performance_metrics(training_attack, training_predict)
 
 performance_metrics(testing_attack, predictions)
+#performance_metrics(New_testing_attack, predictions_new)
 print("\n")
 
 #Task 2
