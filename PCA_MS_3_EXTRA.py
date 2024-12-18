@@ -8,6 +8,8 @@ from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, roc_curve
 import warnings
 
+from Milestone_2 import attack_correlation
+
 # Removing some warnings appearing due to the large dataset
 # No effects on the output
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -302,7 +304,6 @@ def calculate_pdf(values, best_fit_params):
         return None
 
 
-
 def naiive_bayes(df_res):
     print("\nCalculating Naive Bayes predictions...\n")
     """
@@ -317,7 +318,6 @@ def naiive_bayes(df_res):
 
     # Function to safely calculate PDF, skipping invalid columns
     def safe_calculate(col, fit_params):
-
         try:
             if fit_params and 'best_fit_distribution' in fit_params and fit_params['best_fit_distribution']:
                 print("data fitted and getting values")
@@ -331,57 +331,60 @@ def naiive_bayes(df_res):
             print(f"Skipping column '{col}' due to error: {e}")
             return np.ones(len(df_res[col]))
 
+    # Obtain weights
+    weights = attack_correlation(train_df_pca)
+    print('\nWeights:')
+    print(weights)
+    print('\n')
+
     # --- Compute numerator conditioned on 'Anomaly' ---
-    numerical_cols_normal = list(numerical_part_best_fit_anomaly.keys())
+    numerical_cols_anomaly = list(numerical_part_best_fit_anomaly.keys())
+    numerator_anomaly = np.prod([
+        safe_calculate(col, numerical_part_best_fit_anomaly.get(col)) * weights.get(col, 1)
+        for col in numerical_cols_anomaly
+    ], axis=0)
+    print("\nNumerator Anomaly:")
+    print(numerator_anomaly)
 
-    num_numerator_anomaly =np.prod([safe_calculate(col, numerical_part_best_fit_anomaly.get(col)) for col in numerical_cols_normal], axis = 0)
-
-    numerator_anomaly = num_numerator_anomaly
-    print("\nanomaly:\n")
-    print(num_numerator_anomaly)
     # --- Compute numerator conditioned on 'Normal' ---
-    numerical_cols_anomaly = list(numerical_part_best_fit_normal.keys())
-
-    num_numerator_normal = np.prod(
-        [safe_calculate(col, numerical_part_best_fit_normal.get(col)) for col in numerical_cols_anomaly], axis=0
-    )
-
-    numerator_normal = num_numerator_normal
-    print("\nnormal_nomerator\n")
-    print(num_numerator_normal)
+    numerical_cols_normal = list(numerical_part_best_fit_normal.keys())
+    numerator_normal = np.prod([
+        safe_calculate(col, numerical_part_best_fit_normal.get(col)) * weights.get(col, 1)
+        for col in numerical_cols_normal
+    ], axis=0)
+    print("\nNumerator Normal:")
+    print(numerator_normal)
 
     # --- Compute denominator without conditioning ---
     numerical_cols_nocond = list(numerical_part_best_fit_nocond.keys())
-
-    num_denominator = np.prod([safe_calculate(col, numerical_part_best_fit_nocond.get(col)) for col in numerical_cols_nocond], axis = 0)
-    print("\n denominator\n")
-    print(num_denominator)
-    denominator = num_denominator
+    denominator = np.prod([
+        safe_calculate(col, numerical_part_best_fit_nocond.get(col)) * weights.get(col, 1)
+        for col in numerical_cols_nocond
+    ], axis=0)
+    print("\nDenominator:")
+    print(denominator)
 
     # --- Calculate posterior probabilities ---
     pr_normal_given_row = numerator_normal / denominator
-    pr_anomaly_given_row =numerator_anomaly/ denominator
+    pr_anomaly_given_row = numerator_anomaly / denominator
 
+    print("\nPosterior Probability (Normal):")
     print(pr_normal_given_row)
-    print("\n")
+    print("\nPosterior Probability (Anomaly):")
     print(pr_anomaly_given_row)
-    # --- Generate predictions ---
-    # Apply the optimal threshold
+
+
     predicts = np.where(
-        pr_anomaly_given_row > 0, 'anomaly',
-        np.where(
-            pr_normal_given_row > 0, 'normal',
-            np.where(
-                pr_anomaly_given_row < 0,
-                np.where(pr_anomaly_given_row > pr_normal_given_row, 'anomaly', 'normal'),
-                'normal'
-            )
-        )
+        (abs(pr_anomaly_given_row)*60 > abs(pr_normal_given_row)),
+        'anomaly',
+        'normal'
     )
+
     # Convert predictions to 0 and 1
     predictions_final = [1 if i == 'anomaly' else 0 for i in predicts]
 
     return predictions_final
+
 
 def performance_metrics(attack_3, predict_3):
     attack_3 = attack_3.apply(lambda x: 1 if x == 'anomaly' else 0)
@@ -408,20 +411,31 @@ if __name__ == "__main__":
     file_path = "Train_data.csv"
     df = pd.read_csv(file_path)
 
+
+    New_testing = pd.read_csv('Test_data.csv')
+
+
     # Split dataset into train and test sets
     train_df, test_df = train_test_split(df, test_size=0.3, random_state=42)
 
     # Encode categorical features
-    train_df, test_df = encode_categorical_features(train_df, test_df)
+    #train_df, test_df = encode_categorical_features(train_df, test_df)
+    train_df, New_testing = encode_categorical_features(train_df, New_testing)
+
+
+    train_df_pca, New_testing_pca, train_df_pca_nonneg, New_testing_nonneg = apply_pca(train_df, New_testing, n_components=10)
 
     # Apply PCA for dimensionality reduction
-    train_df_pca, test_df_pca, train_df_pca_nonneg, test_df_pca_nonneg = apply_pca(train_df, test_df, n_components=10)
+    #train_df_pca, test_df_pca, train_df_pca_nonneg, test_df_pca_nonneg = apply_pca(train_df, test_df, n_components=10)
 
     # Binarize data for BernoulliNB
-    train_bin_df, test_bin_df = binarize_data(train_df_pca, test_df_pca, threshold=0.0)
+    #train_bin_df, test_bin_df = binarize_data(train_df_pca, test_df_pca, threshold=0.0)
+    train_bin_df, New_testing_bin_df = binarize_data(train_df_pca, New_testing_pca, threshold=0.0)
+
 
     # Train and evaluate all models
-    train_and_evaluate_models(train_df_pca, test_df_pca, train_bin_df, test_bin_df, train_df_pca_nonneg, test_df_pca_nonneg)
+    #train_and_evaluate_models(train_df_pca, test_df_pca, train_bin_df, test_bin_df, train_df_pca_nonneg, test_df_pca_nonneg)
+    train_and_evaluate_models(train_df_pca, New_testing_pca, train_bin_df, New_testing_bin_df, train_df_pca_nonneg, New_testing_nonneg)
 
 
     # Applying PCA for Task 1
@@ -440,8 +454,12 @@ if __name__ == "__main__":
     print(numerical_part_best_fit_nocond)
     print("\n")
 
-    test_df_pca_attack = test_df_pca['class']
-    test_df_pca_no_class = test_df_pca.drop(columns=['class'])
+    #test_df_pca_attack = test_df_pca['class']
+    New_testing_df_pca_attack = New_testing_nonneg['class']
+
+    #test_df_pca_no_class = test_df_pca.drop(columns=['class'])
+    New_testing_df_pca_no_class = New_testing_nonneg.drop(columns=['class'])
+
     print(numerical_part_best_fit_anomaly)
     print(numerical_part_best_fit_normal)
     print(numerical_part_best_fit_nocond)
@@ -449,13 +467,8 @@ if __name__ == "__main__":
     # training_predict = pd.Series(naiive_bayes(train_df_pca_no_class))
 
     # predictions = pd.Series(naiive_bayes(test_df_pca_no_class))
-    New_testing = pd.read_csv('Test_data.csv')
-    New_testing = apply_pca(train_df_pca, New_testing, n_components=10)
-    New_testing = pd.DataFrame
-    New_testing_attack = New_testing.columns('class')
-    New_testing_no_attack = New_testing.drop(columns=['class'])
-    predictions_new = pd.Series(naiive_bayes(New_testing))
+    predictions_new = pd.Series(naiive_bayes(New_testing_df_pca_no_class))
     # performance_metrics(train_df_pca_attack, training_predict)
 
     # performance_metrics(test_df_pca_attack, predictions)
-    performance_metrics(New_testing_attack, predictions_new)
+    performance_metrics(New_testing_df_pca_attack, predictions_new)
