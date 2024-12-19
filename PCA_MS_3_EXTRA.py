@@ -7,7 +7,6 @@ from sklearn.decomposition import PCA
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
 from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, roc_curve
 import warnings
-
 from Milestone_2 import attack_correlation
 
 # Removing some warnings appearing due to the large dataset

@@ -128,16 +128,15 @@ def naiive_bayes(df_res):
             print(f"Skipping column '{col}' due to error: {e}")
             return np.ones(len(df_res[col]))
 
-    weights = attack_correlation(training_df)
     # --- Compute numerator conditioned on 'Anomaly' ---
     numerical_cols = list(numerical_part_best_fit_anomaly.keys())
     categorical_cols = list(categorical_part_best_fit_anomaly.keys())
 
     num_numerator_anomaly = np.prod(
-        [safe_calculate(col, numerical_part_best_fit_anomaly.get(col))*weights.get(col,1) for col in numerical_cols], axis=0
+        [safe_calculate(col, numerical_part_best_fit_anomaly.get(col)) for col in numerical_cols], axis=0
     )
     cat_numerator_anomaly = np.prod(
-        [safe_calculate(col, categorical_part_best_fit_anomaly.get(col), is_categorical=True) *weights.get(col,1)for col in
+        [safe_calculate(col, categorical_part_best_fit_anomaly.get(col), is_categorical=True) for col in
          categorical_cols], axis=0
     )
     numerator_anomaly = num_numerator_anomaly * cat_numerator_anomaly
@@ -147,10 +146,10 @@ def naiive_bayes(df_res):
     categorical_cols = list(categorical_part_best_fit_normal.keys())
 
     num_numerator_normal = np.prod(
-        [safe_calculate(col, numerical_part_best_fit_normal.get(col)) *weights.get(col,1)for col in numerical_cols], axis=0
+        [safe_calculate(col, numerical_part_best_fit_normal.get(col)) for col in numerical_cols], axis=0
     )
     cat_numerator_normal = np.prod(
-        [safe_calculate(col, categorical_part_best_fit_normal.get(col), is_categorical=True) *weights.get(col,1)for col in
+        [safe_calculate(col, categorical_part_best_fit_normal.get(col), is_categorical=True) for col in
          categorical_cols], axis=0
     )
     numerator_normal = num_numerator_normal * cat_numerator_normal
@@ -160,10 +159,10 @@ def naiive_bayes(df_res):
     categorical_cols = list(categorical_part_best_fit_nocond.keys())
 
     num_denominator = np.prod(
-        [safe_calculate(col, numerical_part_best_fit_nocond.get(col))*weights.get(col,1) for col in numerical_cols], axis=0
+        [safe_calculate(col, numerical_part_best_fit_nocond.get(col)) for col in numerical_cols], axis=0
     )
     cat_denominator = np.prod(
-        [safe_calculate(col, categorical_part_best_fit_nocond.get(col), is_categorical=True)*weights.get(col,1) for col in
+        [safe_calculate(col, categorical_part_best_fit_nocond.get(col), is_categorical=True) for col in
          categorical_cols], axis=0
     )
     denominator = num_denominator * cat_denominator
@@ -182,11 +181,9 @@ def naiive_bayes(df_res):
     print(pr_anomaly_given_row)
     print("\n")
     # --- Generate predictions ---
-    predicts = np.where(
-        (pr_anomaly_given_row > pr_normal_given_row),
-        'anomaly',
-        'normal'
-    )
+
+    predicts = np.where(pr_anomaly_given_row>=pr_normal_given_row, 'anomaly', 'normal')
+    # Convert predictions to 0 and 1
     predictions_final = [1 if i == 'anomaly' else 0 for i in predicts]
 
     print(predictions_final)
