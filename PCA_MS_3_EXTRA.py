@@ -332,9 +332,9 @@ def naiive_bayes(df_res):
 
     # Obtain weights
     weights = attack_correlation(train_df_pca)
-    print('\nWeights:')
-    print(weights)
-    print('\n')
+    #print('\nWeights:')
+    #print(weights)
+    #print('\n')
 
     # --- Compute numerator conditioned on 'Anomaly' ---
     numerical_cols_anomaly = list(numerical_part_best_fit_anomaly.keys())
@@ -342,8 +342,8 @@ def naiive_bayes(df_res):
         safe_calculate(col, numerical_part_best_fit_anomaly.get(col)) * weights.get(col, 1)
         for col in numerical_cols_anomaly
     ], axis=0)
-    print("\nNumerator Anomaly:")
-    print(numerator_anomaly)
+    #print("\nNumerator Anomaly:")
+    #print(numerator_anomaly)
 
     # --- Compute numerator conditioned on 'Normal' ---
     numerical_cols_normal = list(numerical_part_best_fit_normal.keys())
@@ -351,8 +351,8 @@ def naiive_bayes(df_res):
         safe_calculate(col, numerical_part_best_fit_normal.get(col)) * weights.get(col, 1)
         for col in numerical_cols_normal
     ], axis=0)
-    print("\nNumerator Normal:")
-    print(numerator_normal)
+    #print("\nNumerator Normal:")
+    #print(numerator_normal)
 
     # --- Compute denominator without conditioning ---
     numerical_cols_nocond = list(numerical_part_best_fit_nocond.keys())
@@ -360,17 +360,17 @@ def naiive_bayes(df_res):
         safe_calculate(col, numerical_part_best_fit_nocond.get(col)) * weights.get(col, 1)
         for col in numerical_cols_nocond
     ], axis=0)
-    print("\nDenominator:")
-    print(denominator)
+    #print("\nDenominator:")
+    #print(denominator)
 
     # --- Calculate posterior probabilities ---
     pr_normal_given_row = numerator_normal / denominator
     pr_anomaly_given_row = numerator_anomaly / denominator
 
-    print("\nPosterior Probability (Normal):")
-    print(pr_normal_given_row)
-    print("\nPosterior Probability (Anomaly):")
-    print(pr_anomaly_given_row)
+    #print("\nPosterior Probability (Normal):")
+    #print(pr_normal_given_row)
+    #print("\nPosterior Probability (Anomaly):")
+    #print(pr_anomaly_given_row)
 
 
     predicts = np.where(
@@ -449,9 +449,9 @@ if __name__ == "__main__":
     train_df_pca_no_class = train_df_pca_nonneg.drop(columns=['class'])
     numerical_part_best_fit_nocond= document_analysis_results_ms3_pca(train_df_pca_no_class)
 
-    print("\nDebug\n")
-    print(numerical_part_best_fit_nocond)
-    print("\n")
+    #print("\nDebug\n")
+    #print(numerical_part_best_fit_nocond)
+    #print("\n")
 
     #test_df_pca_attack = test_df_pca['class']
     New_testing_df_pca_attack = New_testing_nonneg['class']
@@ -459,12 +459,13 @@ if __name__ == "__main__":
     #test_df_pca_no_class = test_df_pca.drop(columns=['class'])
     New_testing_df_pca_no_class = New_testing_nonneg.drop(columns=['class'])
 
-    print(numerical_part_best_fit_anomaly)
-    print(numerical_part_best_fit_normal)
-    print(numerical_part_best_fit_nocond)
+    #print(numerical_part_best_fit_anomaly)
+    #print(numerical_part_best_fit_normal)
+    #print(numerical_part_best_fit_nocond)
     print("\nPCA data fitted.\n")
     # training_predict = pd.Series(naiive_bayes(train_df_pca_no_class))
 
+    print("\nCalculating Naive Bayes predictions...\n")
     # predictions = pd.Series(naiive_bayes(test_df_pca_no_class))
     predictions_new = pd.Series(naiive_bayes(New_testing_df_pca_no_class))
     # performance_metrics(train_df_pca_attack, training_predict)
