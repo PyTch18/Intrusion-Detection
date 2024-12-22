@@ -290,9 +290,9 @@ def calculate_pdf(values, best_fit_params):
 
         if isinstance(params, tuple):
             params = list(params)  # Convert tuple to list
-        print(params)
+        #print(params)
         # Calculate PDF values with the extracted parameters
-        print(values)
+        # print(values)
 
         log_pdf = np.log(distribution.pdf(values, *params) + 1e-10) # To avoid the nan and inf problems
 
@@ -319,7 +319,7 @@ def naiive_bayes(df_res):
     def safe_calculate(col, fit_params):
         try:
             if fit_params and 'best_fit_distribution' in fit_params and fit_params['best_fit_distribution']:
-                print("data fitted and getting values")
+                #print("data fitted and getting values")
                 return calculate_pdf(df_res[col], fit_params)
             else:
                 # If parameters are invalid, skip by returning 1
